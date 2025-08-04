@@ -1,0 +1,9 @@
+python-dotenv
+selenium
+gologin
+webdriver-manager
+pyotp
+pydantic_settings
+pyvirtualdisplay
+pillow
+EasyProcess
