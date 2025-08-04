@@ -27,10 +27,10 @@ class GologinHandler:
             'token': token,
             'extra_params': [
                 # '--headless=new',
-                # '--no-sandbox',
-                # '--disable-dev-shm-usage',
-                # '--disable-gpu',
-                # '--disable-gpu-sandbox',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-gpu-sandbox',
 
                 # VULKAN-SPECIFIC FIXES
                 '--disable-vulkan',
@@ -84,7 +84,7 @@ class GologinHandler:
             debugger_address = self.gologin.start()
             # service = Service(ChromeDriverManager(
             #     driver_version=self.gologin.get_chromium_version()).install())
-            service = Service("/usr/local/bin/chromedriver-137")
+            service = Service("/usr/local/bin/chromedriver")
 
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_experimental_option(

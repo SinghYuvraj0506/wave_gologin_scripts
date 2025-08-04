@@ -25,7 +25,7 @@ class WebhookUtils:
 
         self.task_type = taskData.get("taskType")
         # self.profile_id = taskData.get("gologin_profile_id")
-        self.profile_id = "6873f95d734305a9f88261b8"
+        self.profile_id = "687e4c10ef91c2c4838ab98d"
         self.proxy_country = taskData.get("proxy_country")
         self.proxy_city = taskData.get("proxy_city")
         self.proxy_session_id = taskData.get("proxy_session_id")
