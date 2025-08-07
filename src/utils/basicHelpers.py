@@ -7,16 +7,15 @@ import hmac
 import hashlib
 import requests
 
-def build_brightdata_proxy(session:str, country:str, city:str) -> dict:
-    user = f"{Config.BRIGHTDATA_USER_NAME}-zone-{Config.BRIGHTDATA_ZONE}-country-{country}-city-{city}-session-{session}"
-    print("brightdata username",user)
+def build_proxyconfig(session:str, country:str, city:str) -> dict:
+    user = f"{Config.SOAX_USER_NAME}-country-{country}-city-{city}-sessionid-{session}-sessionlength-3600-opt-wb"
 
     return {
-        "mode": "https",
-        "host": "brd.superproxy.io",
-        "port": 33335,
+        "mode": "http",
+        "host": "proxy.soax.com",
+        "port": 5000,
         "username": user,
-        "password": Config.BRIGHTDATA_PASSWORD
+        "password": Config.SOAX_PASSWORD
     }
 
 

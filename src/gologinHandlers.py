@@ -4,7 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from config import Config
-from utils.basicHelpers import build_brightdata_proxy
+from utils.basicHelpers import build_proxyconfig
 import traceback
 import time
 
@@ -74,9 +74,8 @@ class GologinHandler:
             self.create_gologin_profile()
 
         self.gologin.setProfileId(self.profile_id)
-        proxyConfig = build_brightdata_proxy(session=session_id, city=proxy_city, country=proxy_country)
+        proxyConfig = build_proxyconfig(session=session_id, city=proxy_city, country=proxy_country)
         self.change_gologin_proxy(proxyConfig)
-
 
     def connect_gologin_session(self):
         try:

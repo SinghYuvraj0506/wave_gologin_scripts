@@ -10,7 +10,6 @@ from selenium.webdriver.common.by import By
 from gologinHandlers import GologinHandler
 from utils.WebhookUtils import WebhookUtils
 
-
 class MainExecutor:
     def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook:WebhookUtils, extra_attributes: dict, profile_id: str = None):
         self.profile_id = profile_id
@@ -209,7 +208,6 @@ class MainExecutor:
             self.logger.error(f"❌ Activities failed: {e}")
             return False
 
-
     def execute(self):
         """Main execution method"""
         try:
@@ -239,7 +237,6 @@ class MainExecutor:
         
         finally:
             self.cleanup()
-
 
     def cleanup(self):
         """Clean up resources"""
