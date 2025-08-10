@@ -51,9 +51,8 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
         print(f"\n📝 Processing user {i+1}/{len(messages_to_send)}: @{message['username']}")
 
         username = message['username']
-        message_text = "hello guys this is wave"
+        message_text = message['message']
         message_type=message['type']
-
 
         try:
             # Search for the username

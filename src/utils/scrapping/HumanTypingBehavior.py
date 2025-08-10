@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, ElementNotInteractableException, StaleElementReferenceException
+import pyperclip
 
 
 class HumanTypingBehavior:
@@ -224,9 +225,19 @@ class HumanTypingBehavior:
                     #         # Small pause after correction
                     #         time.sleep(random.uniform(0.1, 0.3))
                     
+                    
+                    if char.isascii():
+                        # Normal keyboard character
+                        target.send_keys(char)
+                    else:
+                        # Emoji or special char — paste instead of typing
+                        pyperclip.copy(char)
+                        ActionChains(self.driver)\
+                            .key_down(Keys.CONTROL)\
+                            .send_keys("v")\
+                            .key_up(Keys.CONTROL)\
+                            .perform()
 
-                    # Type the correct character
-                    target.send_keys(char)
                     typed_text += char
                     
                     # Calculate typing delay

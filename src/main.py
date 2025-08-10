@@ -302,13 +302,13 @@ class MainExecutor:
                 })
 
             elif (self.task_type == "START_CAMPAIGNING"):
-                # search_and_message_users(
-                #     driver=self.driver,
-                #     messages_to_send=self.webhook.attributes.get(
-                #         'messages_to_send', []),
-                #     observer=self.observer,
-                #     webhook=self.webhook
-                # )
+                search_and_message_users(
+                    driver=self.driver,
+                    messages_to_send=self.webhook.attributes.get(
+                        'messages_to_send', []),
+                    observer=self.observer,
+                    webhook=self.webhook
+                )
                 
                 # schedule next bactch of dm processing
                 if self.webhook.attributes.get("next_process_in") is not None:
