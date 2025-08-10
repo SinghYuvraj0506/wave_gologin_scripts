@@ -70,8 +70,10 @@ def browse_explore_page(driver,observer: ScreenObserver):
 
         observer.health_monitor.revive_driver("screenshot")
 
+        print("🏠 Returning to Instagram home page.")
+        driver.get("https://www.instagram.com/")
+
     except NoSuchElementException or TimeoutException:
         print("❌ No posts found on explore page.")
 
-    print("🏠 Returning to Instagram home page.")
-    driver.get("https://www.instagram.com/")
+    
