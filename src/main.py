@@ -9,9 +9,13 @@ import logging
 from selenium.webdriver.common.by import By
 from gologinHandlers import GologinHandler
 from utils.WebhookUtils import WebhookUtils
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
 
 class MainExecutor:
-    def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook:WebhookUtils, extra_attributes: dict, profile_id: str = None):
+    def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook: WebhookUtils, extra_attributes: dict, profile_id: str = None):
         self.profile_id = profile_id
         self.proxy_country = proxy_country
         self.proxy_city = proxy_city
@@ -21,6 +25,7 @@ class MainExecutor:
         self.gologin = None
         self.observer = None
         self.initialized = False
+        self.cookies = None
         self.webhook = webhook
         self.extra_attributes = extra_attributes
 
@@ -39,7 +44,8 @@ class MainExecutor:
                 profile_id=self.profile_id,
                 proxy_country=self.proxy_country,
                 proxy_city=self.proxy_city,
-                session_id=self.session_id
+                session_id=self.session_id,
+                account_id=self.webhook.account_id
             )
 
             self.profile_id = self.gologin.profile_id
@@ -69,35 +75,51 @@ class MainExecutor:
             return False
 
     def check_login_status(self):
-        """Check if user is already logged into Instagram"""
         try:
             if not self.driver:
                 return False
 
-            # Navigate to Instagram if not already there
-            if "instagram.com" not in self.driver.current_url:
-                self.driver.get("https://www.instagram.com")
-                time.sleep(3)
+            print("Checking login status...")
 
+            self.driver.get("https://www.instagram.com/")
+            
+            # Give time for heavy JS before interacting
+            WebDriverWait(self.driver, 30).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+
+            # Try clicking body to wake the DOM
             try:
-                self.driver.find_element(
-                    By.CSS_SELECTOR, "svg[aria-label='Home']")
-                self.logged_in = True
-                self.logger.info("✅ User is already logged in")
-                return True
+                self.driver.find_element(By.TAG_NAME, "body").click()
             except:
                 pass
 
-            # Additional check: look for profile menu
-            # try:
-            #     self.driver.find_element("xpath", "//img[alt=contains(text(),'profile photo')]")
-            #     self.logged_in = True
-            #     self.logger.info("✅ User is already logged in (profile detected)")
-            #     return True
-            # except:
-            #     pass
+            # Explicitly wait for either home icon OR login form
+            try:
+                WebDriverWait(self.driver, 15).until(
+                    EC.any_of(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "svg[aria-label='Home']")),
+                        EC.presence_of_element_located((By.NAME, "username"))
+                    )
+                )
+            except TimeoutException:
+                self.logger.warning("Page load slow — retrying once")
+                self.driver.refresh()
+                WebDriverWait(self.driver, 15).until(
+                    EC.any_of(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "svg[aria-label='Home']")),
+                        EC.presence_of_element_located((By.NAME, "username"))
+                    )
+                )
+
+            # Decide status
+            if self.driver.find_elements(By.CSS_SELECTOR, "svg[aria-label='Home']"):
+                self.logged_in = True
+                self.logger.info("✅ Already logged in")
+                return True
 
             self.logged_in = False
+            self.logger.info("ℹ️ Not logged in")
             return False
 
         except Exception as e:
@@ -105,17 +127,14 @@ class MainExecutor:
             self.logged_in = False
             return False
 
-    def perform_login(self):
+    def perform_login(self, username: str, password: str, secret_key: str):
         """Perform Instagram login and save cookies"""
         try:
-            if self.check_login_status():
-                self.logger.info("Already logged in, skipping login process")
-                return True
-
             self.logger.info("Performing Instagram login...")
 
             # Perform login
-            login_success = insta_login(self.driver)
+            login_success = insta_login(
+                driver=self.driver, username=username, password=password, secret_key=secret_key)
 
             if login_success:
                 time.sleep(3)  # Wait for login to complete
@@ -151,12 +170,12 @@ class MainExecutor:
                 return False
 
             # Get current cookies
-            cookies = self.driver.get_cookies()
-            self.logger.info(f"Attempting to save {len(cookies)} cookies")
+            self.cookies = self.driver.get_cookies()
+            self.logger.info(f"Attempting to save {len(self.cookies)} cookies")
 
             # Filter Instagram cookies
             insta_cookies = [
-                cookie for cookie in cookies if 'instagram.com' in cookie.get('domain', '')]
+                cookie for cookie in self.cookies if 'instagram.com' in cookie.get('domain', '')]
             self.logger.info(
                 f"Found {len(insta_cookies)} Instagram-specific cookies")
 
@@ -175,24 +194,28 @@ class MainExecutor:
 
             self.logger.info("Starting Instagram activities...")
 
-            if (self.task_type == "WARMUP_1"):
-                explore_reels_randomly(self.driver, self.observer)
+            if (self.task_type == "WARMUP"):
+                warmup_type = self.extra_attributes.get("warmup_type", 1)
 
+                if (warmup_type == 1):
+                    explore_reels_randomly(self.driver, self.observer)
+                elif (warmup_type == 2):
+                    browse_explore_page(self.driver, self.observer)
+                else:
+                    print("Viewing stories")
+                    browse_explore_page(self.driver, self.observer)
 
-            elif (self.task_type == "WARMUP_2"):
-                browse_explore_page(self.driver, self.observer)
-
-
-            elif (self.task_type == "WARMUP_3"):
-                # view stories
-                print("Viewring stories")
-
+                self.webhook.update_account_status("warmup_completed", {
+                    "account_id": self.webhook.account_id,
+                    "profile_id": self.profile_id,
+                    "cookies": self.cookies
+                })
 
             elif (self.task_type == "START_CAMPAIGNING"):
-                print("attributes are", self.extra_attributes)
                 search_and_message_users(
                     driver=self.driver,
-                    messages_to_send=self.extra_attributes.get('messages_to_send',[]),
+                    messages_to_send=self.extra_attributes.get(
+                        'messages_to_send', []),
                     observer=self.observer,
                     webhook=self.webhook
                 )
@@ -203,7 +226,6 @@ class MainExecutor:
             time.sleep(5)
             return True
 
-
         except Exception as e:
             self.logger.error(f"❌ Activities failed: {e}")
             return False
@@ -211,15 +233,44 @@ class MainExecutor:
     def execute(self):
         """Main execution method"""
         try:
-            # Initialize session
+            # Initialize session ----------
             if not self.initialize_session():
                 return False
 
-            time.sleep(4)
+            time.sleep(2)
 
-            # Handle login
-            if not self.perform_login():
-                return False
+            # Check login -----------------
+            if self.check_login_status():
+                self.logger.info("Already logged in, skipping login process")
+
+            else:
+                if self.task_type == "LOGIN":
+                    username = self.extra_attributes.get('username')
+                    password = self.extra_attributes.get('password')
+                    secret_key = self.extra_attributes.get('secret_key')
+
+                    if not username or not password or not secret_key:
+                        raise Exception(
+                            "Invalid Request, Attributes not found")
+
+                    if not self.perform_login(username=username, password=password, secret_key=secret_key):
+                        self.webhook.update_account_status("login_failed", {
+                            "account_id": self.webhook.account_id,
+                            "cookies": self.cookies
+                        })
+                        return False
+
+                    self.webhook.update_account_status("login_completed", {
+                        "account_id": self.webhook.account_id,
+                        "profile_id": self.profile_id,
+                        "cookies": self.cookies
+                    })
+
+                else:
+                    self.webhook.update_account_status("login_required", {
+                        "account_id": self.webhook.account_id,
+                        "cookies": self.cookies
+                    })
 
             time.sleep(5)
 
@@ -227,14 +278,13 @@ class MainExecutor:
             if not self.run_activities():
                 return False
 
-            time.sleep(20)
-
+            time.sleep(10)
             return True
 
         except Exception as e:
             self.logger.error(f"❌ Execution failed: {e}")
             return False
-        
+
         finally:
             self.cleanup()
 

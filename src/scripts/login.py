@@ -9,7 +9,7 @@ from config import Config
 from scripts.twofactorCheck import handle_two_factor_authentication
 import time
 
-def insta_login(driver):
+def insta_login(driver, username:str, password:str, secret_key:str):
     """
     Logs into Instagram using the provided Selenium driver.
 
@@ -29,9 +29,6 @@ def insta_login(driver):
 
         human_mouse.random_mouse_jitter(4)
 
-        username = Config.INSTA_USERNAME
-        password = Config.INSTA_PASSWORD
-
         username_input = wait.until(EC.presence_of_element_located((By.NAME, "username")))
         password_input = wait.until(EC.presence_of_element_located((By.NAME, "password")))
 
@@ -50,7 +47,7 @@ def insta_login(driver):
         time.sleep(4)
 
         # Handle 2FA if required
-        if not handle_two_factor_authentication(driver):
+        if not handle_two_factor_authentication(driver, secret_key=secret_key):
             return False
 
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))

@@ -9,7 +9,7 @@ from utils.scrapping.HumanTypingBehavior import HumanTypingBehavior
 from utils.basicHelpers import getTOTP
 from config import Config
 
-def handle_two_factor_authentication(driver):
+def handle_two_factor_authentication(driver, secret_key:str):
     """
     Handles the two-factor authentication step during Instagram login.
 
@@ -31,7 +31,7 @@ def handle_two_factor_authentication(driver):
         print("ℹ️ Two-factor authentication required.")
 
         # Get the 2FA code from an environment variable
-        verification_code = getTOTP(Config.INSTA_SECRET_CODE)
+        verification_code = getTOTP(secret_key)
         
         if not verification_code:
             print("❌ Error: Generating TOTP.")

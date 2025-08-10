@@ -24,8 +24,9 @@ class WebhookUtils:
         print(taskData)
 
         self.task_type = taskData.get("taskType")
-        # self.profile_id = taskData.get("gologin_profile_id")
-        self.profile_id = "687e4c10ef91c2c4838ab98d"
+        self.account_id = taskData.get("account_id")
+        self.profile_id = taskData.get("gologin_profile_id")
+        # self.profile_id = "687e4c10ef91c2c4838ab98d"
         self.proxy_country = taskData.get("proxy_country")
         self.proxy_city = taskData.get("proxy_city")
         self.proxy_session_id = taskData.get("proxy_session_id")
@@ -69,6 +70,7 @@ class WebhookUtils:
         except Exception as e:
             print("Found Exception in sending webhook requests", response.json())
             return False
+
 
     def check_task_response(self):
         # check if for a particular task type it has the data other wise throw error
@@ -119,7 +121,7 @@ class WebhookUtils:
         Update the Account status
 
         Args:
-            event: 'login_success', 'warmup_1_success','warmup_2_success','warmup_3_success','login_failed','manual_intervention_needed'
+            event: 'login_completed', 'warmup_completed','login_failed','login_manual_interuption_required', 'login_required'
             payload: any extra data that need to transfer
 
         Returns:

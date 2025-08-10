@@ -18,7 +18,7 @@ class BaseGologinError(Exception):
 
 
 class GologinHandler:
-    def __init__(self, proxy_country:str, proxy_city:str, session_id:str, profile_id: str = None):
+    def __init__(self, proxy_country:str, proxy_city:str, session_id:str,account_id:str, profile_id: str = None):
         token = Config.GL_API_TOKEN
         if not token:
             raise BaseGologinError("Gologin Token not found")
@@ -68,6 +68,7 @@ class GologinHandler:
 
         self.gologin = GoLogin(params)
         self.profile_id = profile_id
+        self.account_id = account_id
         self.driver = None
 
         if profile_id is None:
@@ -116,7 +117,7 @@ class GologinHandler:
         try:
             self.profile_id = self.gologin.createProfileWithCustomParams({
                 "os": "lin",
-                "name": f"instagram-bot-{int(time.time())}",
+                "name": f"instagram-bot-{self.account_id}",
                 "autoLang": False,
                 "navigator": {
                     "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.7049.41 Safari/537.36",
