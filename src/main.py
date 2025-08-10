@@ -80,52 +80,143 @@ class MainExecutor:
                 return False
 
             print("Checking login status...")
-
-            self.driver.get("https://www.instagram.com/")
             
-            # Give time for heavy JS before interacting
-            WebDriverWait(self.driver, 30).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-
-            # Try clicking body to wake the DOM
+            # Set shorter page load timeout to prevent hanging
+            original_timeout = self.driver.timeouts.page_load
+            self.driver.set_page_load_timeout(20)  # Shorter timeout
+            
             try:
-                self.driver.find_element(By.TAG_NAME, "body").click()
+                self.driver.get("https://www.instagram.com/")
+            except Exception as e:
+                if "timeout" in str(e).lower():
+                    print("⚠️ Page load timeout - attempting recovery")
+                    # Don't fail immediately, try to work with partial load
+                else:
+                    raise e
+            
+            # Immediate health check after page load
+            try:
+                self.driver.execute_script("return document.readyState;")
             except:
-                pass
-
-            # Explicitly wait for either home icon OR login form
-            try:
-                WebDriverWait(self.driver, 15).until(
-                    EC.any_of(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "svg[aria-label='Home']")),
-                        EC.presence_of_element_located((By.NAME, "username"))
+                print("🔄 Driver unresponsive - attempting revival")
+                self.driver.execute_script("window.scrollTo(0, 50);")
+                time.sleep(1)
+            
+            # Progressive loading strategy
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                try:
+                    print(f"Loading attempt {attempt + 1}/{max_attempts}")
+                    
+                    # Step 1: Wait for basic page structure
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.TAG_NAME, "body"))
                     )
-                )
-            except TimeoutException:
-                self.logger.warning("Page load slow — retrying once")
-                self.driver.refresh()
-                WebDriverWait(self.driver, 15).until(
-                    EC.any_of(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "svg[aria-label='Home']")),
-                        EC.presence_of_element_located((By.NAME, "username"))
-                    )
-                )
-
-            # Decide status
-            if self.driver.find_elements(By.CSS_SELECTOR, "svg[aria-label='Home']"):
-                self.logged_in = True
-                self.logger.info("✅ Already logged in")
-                return True
-
+                    
+                    # Step 2: Wake up the page with interactions
+                    try:
+                        self.driver.execute_script("document.body.click();")
+                        time.sleep(1)
+                        self.driver.execute_script("window.scrollTo(0, 100);")
+                        time.sleep(1)
+                        self.driver.execute_script("window.scrollTo(0, 0);")
+                    except:
+                        pass
+                    
+                    # Step 3: Check for Instagram content with flexible selectors
+                    content_found = False
+                    selectors_to_try = [
+                        # Logged in indicators
+                        ("svg[aria-label='Home']", "home_icon"),
+                        ("a[href='/']", "home_link"), 
+                        ("[data-testid='mobile-nav-home']", "mobile_home"),
+                        ("svg[aria-label*='Home']", "home_variant"),
+                        
+                        # Login form indicators
+                        ("input[name='username']", "username_input"),
+                        ("input[placeholder*='username']", "username_placeholder"),
+                        ("form[method='post']", "login_form"),
+                        ("[data-testid='royal_login_form']", "royal_form")
+                    ]
+                    
+                    for selector, name in selectors_to_try:
+                        try:
+                            elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                            if elements:
+                                print(f"✅ Found {name} - Instagram loaded")
+                                content_found = True
+                                
+                                # Determine login status
+                                if name.startswith("home"):
+                                    self.logged_in = True
+                                    self.logger.info("✅ Already logged in")
+                                    return True
+                                elif name.startswith("username") or name.endswith("form"):
+                                    self.logged_in = False
+                                    self.logger.info("ℹ️ Not logged in")
+                                    return False
+                                break
+                        except:
+                            continue
+                    
+                    if content_found:
+                        break
+                        
+                    # If no content found, try revival
+                    if attempt < max_attempts - 1:
+                        print("🔄 No Instagram content found - attempting revival")
+                        self.driver.execute_script("window.location.reload();")
+                        time.sleep(3)
+                        
+                except TimeoutException:
+                    if attempt < max_attempts - 1:
+                        print(f"⚠️ Attempt {attempt + 1} timed out - trying revival")
+                        try:
+                            # Force interaction to wake up page
+                            self.driver.execute_script("document.body.style.display='none';")
+                            time.sleep(0.5)
+                            self.driver.execute_script("document.body.style.display='';")
+                            time.sleep(2)
+                        except:
+                            pass
+                    else:
+                        raise
+            
+            # Final fallback - check current URL and make educated guess
+            current_url = self.driver.current_url
+            if "instagram.com" in current_url:
+                if "/accounts/login" in current_url or current_url.count("/") <= 3:
+                    print("📍 URL suggests login page")
+                    self.logged_in = False
+                    return False
+                else:
+                    print("📍 URL suggests logged in state")
+                    self.logged_in = True
+                    return True
+            
+            # Ultimate fallback
+            print("⚠️ Could not determine login status - assuming not logged in")
             self.logged_in = False
-            self.logger.info("ℹ️ Not logged in")
             return False
 
         except Exception as e:
             self.logger.error(f"Error checking login status: {e}")
+            # Try one final health check
+            try:
+                self.driver.execute_script("return 'alive';")
+                print("🔄 Driver still alive despite error")
+            except:
+                print("❌ Driver appears dead")
+            
             self.logged_in = False
             return False
+        
+        finally:
+            # Restore original timeout
+            try:
+                self.driver.set_page_load_timeout(original_timeout)
+            except:
+                pass
 
     def perform_login(self, username: str, password: str, secret_key: str):
         """Perform Instagram login and save cookies"""
