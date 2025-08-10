@@ -71,11 +71,9 @@ class WebhookUtils:
             print("Found Exception in sending webhook requests", response.json())
             return False
 
-
     def check_task_response(self):
         # check if for a particular task type it has the data other wise throw error
         return True
-
 
     def update_task_status(self, event: str, payload: dict = {}):
         """
@@ -101,7 +99,7 @@ class WebhookUtils:
         Update the Camapaign status
 
         Args:
-            event: Name of event, possible options 'sent_dm'
+            event: Name of event, possible options 'sent_dm', 'schedule_next_iteration'
             payload: any extra data that need to transfer poosible fields are 
                     :campaign_id, username, data, type, failed
 

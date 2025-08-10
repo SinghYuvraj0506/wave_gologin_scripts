@@ -15,7 +15,7 @@ from selenium.common.exceptions import TimeoutException
 
 
 class MainExecutor:
-    def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook: WebhookUtils, extra_attributes: dict, profile_id: str = None):
+    def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook: WebhookUtils, profile_id: str = None):
         self.profile_id = profile_id
         self.proxy_country = proxy_country
         self.proxy_city = proxy_city
@@ -27,7 +27,6 @@ class MainExecutor:
         self.initialized = False
         self.cookies = None
         self.webhook = webhook
-        self.extra_attributes = extra_attributes
 
         # Setup logging
         logging.basicConfig(level=logging.INFO)
@@ -286,7 +285,7 @@ class MainExecutor:
             self.logger.info("Starting Instagram activities...")
 
             if (self.task_type == "WARMUP"):
-                warmup_type = self.extra_attributes.get("warmup_type", 1)
+                warmup_type = self.webhook.attributes.get("warmup_type", 1)
 
                 if (warmup_type == 1):
                     explore_reels_randomly(self.driver, self.observer)
@@ -303,13 +302,21 @@ class MainExecutor:
                 })
 
             elif (self.task_type == "START_CAMPAIGNING"):
-                search_and_message_users(
-                    driver=self.driver,
-                    messages_to_send=self.extra_attributes.get(
-                        'messages_to_send', []),
-                    observer=self.observer,
-                    webhook=self.webhook
-                )
+                # search_and_message_users(
+                #     driver=self.driver,
+                #     messages_to_send=self.webhook.attributes.get(
+                #         'messages_to_send', []),
+                #     observer=self.observer,
+                #     webhook=self.webhook
+                # )
+                
+                # schedule next bactch of dm processing
+                if self.webhook.attributes.get("next_process_in") is not None:
+                    self.webhook.update_campaign_status("schedule_next_iteration",{
+                        "campaign_id": self.webhook.attributes.get("campaign_id"),
+                        "delay_in_minutes": self.webhook.attributes.get("next_process_in")
+                    })
+
 
             elif (self.task_type != "LOGIN"):
                 raise Exception("Invalid Task Type")
@@ -336,9 +343,9 @@ class MainExecutor:
 
             else:
                 if self.task_type == "LOGIN":
-                    username = self.extra_attributes.get('username')
-                    password = self.extra_attributes.get('password')
-                    secret_key = self.extra_attributes.get('secret_key')
+                    username = self.webhook.attributes.get('username')
+                    password = self.webhook.attributes.get('password')
+                    secret_key = self.webhook.attributes.get('secret_key')
 
                     if not username or not password or not secret_key:
                         raise Exception(

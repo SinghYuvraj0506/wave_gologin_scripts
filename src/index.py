@@ -12,7 +12,7 @@ def init():
 
     with SmartDisplay() as disp:
         executor = MainExecutor(profile_id=webhook.profile_id, proxy_country=webhook.proxy_country,
-                                proxy_city=webhook.proxy_city, session_id=webhook.proxy_session_id, task_type=webhook.task_type, webhook=webhook, extra_attributes=webhook.attributes)
+                                proxy_city=webhook.proxy_city, session_id=webhook.proxy_session_id, task_type=webhook.task_type, webhook=webhook)
 
         success = executor.execute()
 
