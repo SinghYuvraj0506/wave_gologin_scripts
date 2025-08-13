@@ -89,6 +89,10 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 
             else:
                 raise Exception(f"❌ User @{username} not found, skipping...")
+            
+            
+        except RuntimeError as r:
+            raise
 
         except Exception as e:
             failed_users.append(f"{username} (error: {str(e)})")
@@ -161,18 +165,14 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
                     EC.element_to_be_clickable(search_input))
         human_typing.human_like_type(
             search_input, text=username, clear_field=True)
-        # elem.clear()
-        # human_typing.paste_text(elem, username)
-        # elem.send_keys(Keys.RETURN)
         
         time.sleep(4)
-        driver.save_screenshot("/app/instagram_0.png")
 
         try:
            # Wait for search results to appear and find the exact user
             observer.health_monitor.revive_driver("screenshot")
 
-            user_result = (By.XPATH, f"//span[contains(text(),'{username}')]")
+            user_result = (By.XPATH, f"//span[text()='{username}']")
             human_mouse.human_like_move_to_element(user_result, click=True)
             time.sleep(1)
             observer.health_monitor.revive_driver("refresh")

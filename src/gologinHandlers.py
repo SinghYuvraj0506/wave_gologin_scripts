@@ -77,6 +77,7 @@ class GologinHandler:
         self.gologin.setProfileId(self.profile_id)
         proxyConfig = build_proxyconfig(session=session_id, city=proxy_city, country=proxy_country)
         self.change_gologin_proxy(proxyConfig)
+        
 
     def connect_gologin_session(self):
         try:

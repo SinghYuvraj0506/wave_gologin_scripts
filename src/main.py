@@ -13,7 +13,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-
 class MainExecutor:
     def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook: WebhookUtils, profile_id: str = None):
         self.profile_id = profile_id
@@ -198,6 +197,7 @@ class MainExecutor:
             self.logged_in = False
             return False
 
+
         except Exception as e:
             self.logger.error(f"Error checking login status: {e}")
             # Try one final health check
@@ -317,12 +317,14 @@ class MainExecutor:
                         "delay_in_minutes": self.webhook.attributes.get("next_process_in")
                     })
 
-
             elif (self.task_type != "LOGIN"):
                 raise Exception("Invalid Task Type")
 
             time.sleep(5)
             return True
+        
+        except RuntimeError as r:
+            raise
 
         except Exception as e:
             self.logger.error(f"❌ Activities failed: {e}")
@@ -369,6 +371,8 @@ class MainExecutor:
                         "account_id": self.webhook.account_id,
                         "cookies": self.cookies
                     })
+                    #  login required would trigger and ask to login again nd if login is genuiinloy faulted then it would say login failed
+                    return True
 
             time.sleep(5)
 
@@ -378,6 +382,10 @@ class MainExecutor:
 
             time.sleep(10)
             return True
+        
+        except RuntimeError as r:
+            print(" ❌ Found Runtime Error >> ", str(r))
+            return True
 
         except Exception as e:
             self.logger.error(f"❌ Execution failed: {e}")
@@ -385,6 +393,7 @@ class MainExecutor:
 
         finally:
             self.cleanup()
+
 
     def cleanup(self):
         """Clean up resources"""

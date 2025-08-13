@@ -4,7 +4,6 @@ import requests
 import json
 from config import Config
 
-
 class WebhookUtils:
     """
     A class to send webhook request for various events
@@ -66,6 +65,9 @@ class WebhookUtils:
                     f"Webhook response indicated to stop: {response_data}")
 
             return response_data.get("data", None)
+        
+        except RuntimeError:
+            raise
 
         except Exception as e:
             print("Found Exception in sending webhook requests", response.json())
@@ -74,6 +76,7 @@ class WebhookUtils:
     def check_task_response(self):
         # check if for a particular task type it has the data other wise throw error
         return True
+
 
     def update_task_status(self, event: str, payload: dict = {}):
         """

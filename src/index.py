@@ -5,7 +5,7 @@ from config import Config
 from dotenv import load_dotenv
 load_dotenv()
 from utils.WebhookUtils import WebhookUtils
-
+import os
 
 def init():
     webhook = WebhookUtils(task_id=Config.TASK_ID)
@@ -20,7 +20,8 @@ def init():
             print("✅ Execution completed successfully")
             webhook.update_task_status("task_completed")
         else:
-            print("❌ Execution failed")
+            print("❌ Execution failed, task failed")
+            os.environ["SAVE_LOGS"] = "true"
             webhook.update_task_status("task_failed")
 
 
@@ -29,4 +30,4 @@ if __name__ == '__main__':
         init()
     except Exception as e:
         print(f'❌ {e}')
-        sys.exit(1)
+        os.environ["SAVE_LOGS"] = "true"
