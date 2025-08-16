@@ -314,7 +314,7 @@ class MainExecutor:
                 if self.webhook.attributes.get("next_process_in") is not None:
                     self.webhook.update_campaign_status("schedule_next_iteration",{
                         "campaign_id": self.webhook.attributes.get("campaign_id"),
-                        "delay_in_minutes": self.webhook.attributes.get("next_process_in")
+                        "delay_in_seconds": self.webhook.attributes.get("next_process_in")
                     })
 
             elif (self.task_type != "LOGIN"):
