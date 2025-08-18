@@ -30,6 +30,8 @@ def goto_profile_and_save_image (driver, observer: ScreenObserver, username:str,
 
         observer.health_monitor.revive_driver("screenshot")
 
+        time.sleep(6)
+
         # Wait for Profile image feed to load
         element = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, f"//img[contains(@alt, \"{username}'s profile picture\")]"))

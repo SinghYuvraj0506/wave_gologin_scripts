@@ -1,6 +1,5 @@
 from main import MainExecutor
 from pyvirtualdisplay.smartdisplay import SmartDisplay
-import sys
 from config import Config
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,8 +20,8 @@ def init():
             webhook.update_task_status("task_completed")
         else:
             print("❌ Execution failed, task failed")
-            os.environ["SAVE_LOGS"] = "true"
             webhook.update_task_status("task_failed")
+            os.environ["SAVE_LOGS"] = "true"
 
 
 if __name__ == '__main__':

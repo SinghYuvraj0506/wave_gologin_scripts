@@ -4,6 +4,7 @@ from scripts.login import insta_login
 from scripts.exploreReel import explore_reels_randomly
 from scripts.browseExplore import browse_explore_page
 from scripts.goToMessages import search_and_message_users
+from scripts.goToProfile import goto_profile_and_save_image
 from utils.basicHelpers import get_ip_proxy
 import logging
 from selenium.webdriver.common.by import By
@@ -12,6 +13,7 @@ from utils.WebhookUtils import WebhookUtils
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+
 
 class MainExecutor:
     def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook: WebhookUtils, profile_id: str = None):
@@ -78,11 +80,11 @@ class MainExecutor:
                 return False
 
             print("Checking login status...")
-            
+
             # Set shorter page load timeout to prevent hanging
             original_timeout = self.driver.timeouts.page_load
             self.driver.set_page_load_timeout(20)  # Shorter timeout
-            
+
             try:
                 self.driver.get("https://www.instagram.com/")
             except Exception as e:
@@ -91,7 +93,7 @@ class MainExecutor:
                     # Don't fail immediately, try to work with partial load
                 else:
                     raise e
-            
+
             # Immediate health check after page load
             try:
                 self.driver.execute_script("return document.readyState;")
@@ -99,18 +101,18 @@ class MainExecutor:
                 print("🔄 Driver unresponsive - attempting revival")
                 self.driver.execute_script("window.scrollTo(0, 50);")
                 time.sleep(1)
-            
+
             # Progressive loading strategy
             max_attempts = 3
             for attempt in range(max_attempts):
                 try:
                     print(f"Loading attempt {attempt + 1}/{max_attempts}")
-                    
+
                     # Step 1: Wait for basic page structure
                     WebDriverWait(self.driver, 10).until(
                         EC.presence_of_element_located((By.TAG_NAME, "body"))
                     )
-                    
+
                     # Step 2: Wake up the page with interactions
                     try:
                         self.driver.execute_script("document.body.click();")
@@ -120,30 +122,32 @@ class MainExecutor:
                         self.driver.execute_script("window.scrollTo(0, 0);")
                     except:
                         pass
-                    
+
                     # Step 3: Check for Instagram content with flexible selectors
                     content_found = False
                     selectors_to_try = [
                         # Logged in indicators
                         ("svg[aria-label='Home']", "home_icon"),
-                        ("a[href='/']", "home_link"), 
+                        ("a[href='/']", "home_link"),
                         ("[data-testid='mobile-nav-home']", "mobile_home"),
                         ("svg[aria-label*='Home']", "home_variant"),
-                        
+
                         # Login form indicators
                         ("input[name='username']", "username_input"),
-                        ("input[placeholder*='username']", "username_placeholder"),
+                        ("input[placeholder*='username']",
+                         "username_placeholder"),
                         ("form[method='post']", "login_form"),
                         ("[data-testid='royal_login_form']", "royal_form")
                     ]
-                    
+
                     for selector, name in selectors_to_try:
                         try:
-                            elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                            elements = self.driver.find_elements(
+                                By.CSS_SELECTOR, selector)
                             if elements:
                                 print(f"✅ Found {name} - Instagram loaded")
                                 content_found = True
-                                
+
                                 # Determine login status
                                 if name.startswith("home"):
                                     self.logged_in = True
@@ -156,30 +160,33 @@ class MainExecutor:
                                 break
                         except:
                             continue
-                    
+
                     if content_found:
                         break
-                        
+
                     # If no content found, try revival
                     if attempt < max_attempts - 1:
                         print("🔄 No Instagram content found - attempting revival")
                         self.driver.execute_script("window.location.reload();")
                         time.sleep(3)
-                        
+
                 except TimeoutException:
                     if attempt < max_attempts - 1:
-                        print(f"⚠️ Attempt {attempt + 1} timed out - trying revival")
+                        print(
+                            f"⚠️ Attempt {attempt + 1} timed out - trying revival")
                         try:
                             # Force interaction to wake up page
-                            self.driver.execute_script("document.body.style.display='none';")
+                            self.driver.execute_script(
+                                "document.body.style.display='none';")
                             time.sleep(0.5)
-                            self.driver.execute_script("document.body.style.display='';")
+                            self.driver.execute_script(
+                                "document.body.style.display='';")
                             time.sleep(2)
                         except:
                             pass
                     else:
                         raise
-            
+
             # Final fallback - check current URL and make educated guess
             current_url = self.driver.current_url
             if "instagram.com" in current_url:
@@ -191,12 +198,11 @@ class MainExecutor:
                     print("📍 URL suggests logged in state")
                     self.logged_in = True
                     return True
-            
+
             # Ultimate fallback
             print("⚠️ Could not determine login status - assuming not logged in")
             self.logged_in = False
             return False
-
 
         except Exception as e:
             self.logger.error(f"Error checking login status: {e}")
@@ -206,10 +212,10 @@ class MainExecutor:
                 print("🔄 Driver still alive despite error")
             except:
                 print("❌ Driver appears dead")
-            
+
             self.logged_in = False
             return False
-        
+
         finally:
             # Restore original timeout
             try:
@@ -284,7 +290,14 @@ class MainExecutor:
 
             self.logger.info("Starting Instagram activities...")
 
-            if (self.task_type == "WARMUP"):
+            if (self.task_type == "LOGIN"):
+                goto_profile_and_save_image(driver=self.driver,
+                                            observer=self.observer,
+                                            username=self.webhook.attributes.get(
+                                                'username'),
+                                            webhook=self.webhook)
+
+            elif (self.task_type == "WARMUP"):
                 warmup_type = self.webhook.attributes.get("warmup_type", 1)
 
                 if (warmup_type == 1):
@@ -309,20 +322,20 @@ class MainExecutor:
                     observer=self.observer,
                     webhook=self.webhook
                 )
-                
+
                 # schedule next bactch of dm processing
                 if self.webhook.attributes.get("next_process_in") is not None:
-                    self.webhook.update_campaign_status("schedule_next_iteration",{
+                    self.webhook.update_campaign_status("schedule_next_iteration", {
                         "campaign_id": self.webhook.attributes.get("campaign_id"),
                         "delay_in_seconds": self.webhook.attributes.get("next_process_in")
                     })
 
-            elif (self.task_type != "LOGIN"):
+            else:
                 raise Exception("Invalid Task Type")
 
             time.sleep(5)
             return True
-        
+
         except RuntimeError as r:
             raise
 
@@ -382,7 +395,7 @@ class MainExecutor:
 
             time.sleep(10)
             return True
-        
+
         except RuntimeError as r:
             print(" ❌ Found Runtime Error >> ", str(r))
             return True
@@ -393,7 +406,6 @@ class MainExecutor:
 
         finally:
             self.cleanup()
-
 
     def cleanup(self):
         """Clean up resources"""
