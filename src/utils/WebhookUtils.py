@@ -3,6 +3,8 @@ import hashlib
 import requests
 import json
 from config import Config
+import os
+
 
 class WebhookUtils:
     """
@@ -19,7 +21,7 @@ class WebhookUtils:
 
         if not taskData:
             raise Exception(f"Error from server, response data  is {taskData}")
-        
+
         print(taskData)
 
         self.task_type = taskData.get("taskType")
@@ -29,13 +31,12 @@ class WebhookUtils:
         self.proxy_country = taskData.get("proxy_country")
         self.proxy_city = taskData.get("proxy_city")
         self.proxy_session_id = taskData.get("proxy_session_id")
-        self.attributes = taskData.get("attributes",{})
+        self.attributes = taskData.get("attributes", {})
 
         if (not self.task_type or not self.proxy_country or not self.proxy_city or not self.proxy_session_id):
             raise Exception("Error from server, Invalid response type")
 
         self.check_task_response()
-
 
     def send_webhook(self, payload: dict):
         print("⏱️ Sending the webhook request for event",
@@ -54,7 +55,9 @@ class WebhookUtils:
 
             webhook_url = Config.WEBHOOK_URL
             response = requests.post(
-                webhook_url, headers=headers, data=payload_str, timeout=(3, 8))
+                    webhook_url, headers=headers, data=payload_str, timeout=(
+                        5, 15)
+                )
 
             response.raise_for_status()
             response_data = response.json()
@@ -65,7 +68,7 @@ class WebhookUtils:
                     f"Webhook response indicated to stop: {response_data}")
 
             return response_data.get("data", None)
-        
+
         except RuntimeError:
             raise
 
@@ -76,7 +79,6 @@ class WebhookUtils:
     def check_task_response(self):
         # check if for a particular task type it has the data other wise throw error
         return True
-
 
     def update_task_status(self, event: str, payload: dict = {}):
         """
@@ -96,7 +98,6 @@ class WebhookUtils:
             "payload": payload
         })
 
-
     def update_campaign_status(self, event: str, payload: dict = {}):
         """
         Update the Camapaign status
@@ -115,14 +116,13 @@ class WebhookUtils:
             "event": event,
             "payload": payload
         })
-    
 
     def update_account_status(self, event: str, payload: dict = {}):
         """
         Update the Account status
 
         Args:
-            event: 'login_completed', 'warmup_completed','login_failed','login_manual_interuption_required', 'login_required'
+            event: 'login_completed', 'warmup_completed','login_failed','login_manual_interuption_required', 'login_required', 'update_profile_image'
             payload: any extra data that need to transfer
 
         Returns:
@@ -132,5 +132,5 @@ class WebhookUtils:
         return self.send_webhook({
             "task_id": self.task_id,
             "event": event,
-            "payload": payload
+            "payload": payload,
         })
