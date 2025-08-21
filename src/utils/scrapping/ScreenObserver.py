@@ -3,6 +3,8 @@ import threading
 import logging
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import json
 from datetime import datetime
 from utils.scrapping.HumanMouseBehavior import HumanMouseBehavior
@@ -425,8 +427,9 @@ class ScreenObserver:
 
         try:
             # Check if dialog appears
-            dialogElement = self.driver.find_element(
-                By.XPATH, "//div[@role='dialog']")
+            WebDriverWait(self.driver, 15).until(
+                    EC.presence_of_element_located((By.XPATH, "//div[@role='dialog']"))
+            )
 
             # Fix XPath for radio input
             inputToClick = self.driver.find_element(
@@ -449,8 +452,6 @@ class ScreenObserver:
                 f"Error handling ad free subscription consent: {e}")
             return False
         
-
-
     def handle_consent_user_cookie_choice(self):
         try:
             time.sleep(2)

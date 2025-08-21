@@ -373,7 +373,7 @@ class MainExecutor:
                         self.webhook.update_account_status("login_failed", {
                             "account_id": self.webhook.account_id,
                             "cookies": self.cookies,
-                            "profile_id": self.gologin.profile_id
+                            "profile_id": self.profile_id
                         })
                         return True
 

@@ -49,7 +49,8 @@ def insta_login(driver, username:str, password:str, secret_key:str):
         # Handle 2FA if required
         if not handle_two_factor_authentication(driver, secret_key=secret_key):
             return False
-
+        
+        time.sleep(70)
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
         print("✅ Login successful!")
         return True
