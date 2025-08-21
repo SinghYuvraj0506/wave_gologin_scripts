@@ -8,6 +8,7 @@ import os
 
 def init():
     try:
+        webhook = None
         webhook = WebhookUtils(task_id=Config.TASK_ID)
 
         with SmartDisplay() as disp:
@@ -29,7 +30,7 @@ def init():
         print(f'❌ {e}')
         os.environ["SAVE_LOGS"] = "true"
 
-        if(webhook):
+        if(webhook is not None and webhook.update_task_status is not None):
             webhook.update_task_status("task_failed")
 
 

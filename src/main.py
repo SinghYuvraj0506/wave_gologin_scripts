@@ -14,6 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import json
+import sys
 
 
 class MainExecutor:
@@ -34,15 +35,18 @@ class MainExecutor:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def observer_callback_handler(self, event_type:str, data):
+    def observer_callback_handler(self, event_type: str, data):
         """Callback function to handle any unexpected events like 'url_change', 'dialog_detected', 'action_required'"""
         print(f"👮 Observer Event: {event_type} Detected")
         print(f"Data: {json.dumps(data, indent=2)}")
 
         if event_type == "action_required":
-            self.webhook.update_account_status(event="login_manual_interuption_required",payload=data)
+            self.webhook.update_account_status(event="login_manual_interuption_required", payload={
+                                               "metadata":data, "account_id": self.webhook.account_id})
+            self.webhook.update_task_status("task_failed")
             self.cleanup()
-            raise Exception("Manual Interuption Required, Stopping the script to run further")
+            print("Manual Interuption Required, Stopping the script to run further")
+            sys.exit(1)
 
     def initialize_session(self):
         """Initialize GoLogin session and driver"""
@@ -196,8 +200,9 @@ class MainExecutor:
                     else:
                         raise
 
-
             # Ultimate fallback
+            # wait for 30 sec to see if it is possible to be handled by observer
+            time(30)
             print("⚠️ Could not determine login status - assuming not logged in")
             self.logged_in = False
             return False
@@ -220,7 +225,6 @@ class MainExecutor:
                 self.driver.set_page_load_timeout(original_timeout)
             except:
                 pass
-
 
     def perform_login(self, username: str, password: str, secret_key: str):
         """Perform Instagram login and save cookies"""
@@ -380,13 +384,15 @@ class MainExecutor:
                     })
 
                 else:
-                    time.sleep(30)
-                    # observer will autocheck if the url matches some know problems then send manual invervention required ------------------
-                    self.webhook.update_account_status("login_required", {
-                        "account_id": self.webhook.account_id,
-                        "cookies": self.cookies
-                    })
-                    return True
+                    print(
+                        "Waiting for screen observer if it fixes the problem, and then will check again")
+
+                    if not self.check_login_status():
+                        self.webhook.update_account_status("login_required", {
+                            "account_id": self.webhook.account_id,
+                            "cookies": self.cookies
+                        })
+                        return True
 
             time.sleep(5)
 

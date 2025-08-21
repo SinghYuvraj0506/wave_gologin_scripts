@@ -81,7 +81,7 @@ class ScreenObserver:
             'blocked_page': self.handle_blocked_page,
             'onetap_save_info': self.handle_onetap_save_info,
             'challenge_redirect': self.handle_challenge_redirect,
-            'consent_ad_free_subscription': self.handle_consent_ad_free_subscription_handler
+            'consent': self.handle_consent_redirect
         }
 
         # Initialize current URL
@@ -89,7 +89,6 @@ class ScreenObserver:
             self.current_url = self.driver.current_url
         except:
             self.current_url = ""
-
 
     def start_monitoring(self):
         """Start the monitoring thread"""
@@ -154,7 +153,6 @@ class ScreenObserver:
         except Exception as e:
             self.logger.error(f"Error checking URL changes: {e}")
 
-
     def _check_dialogs(self):
         """Check for dialogs and handle them"""
         try:
@@ -179,7 +177,6 @@ class ScreenObserver:
 
         except Exception as e:
             self.logger.error(f"Error checking dialogs: {e}")
-
 
     def _detect_dialog(self, patterns):
         """Detect if any dialog pattern is present"""
@@ -212,8 +209,8 @@ class ScreenObserver:
         if 'accounts/onetap' in new_url:
             self.url_change_handlers['onetap_save_info'](old_url, new_url)
 
-        elif '/consent/?flow=ad_free_subscription' in new_url:
-            self.url_change_handlers['consent_ad_free_subscription'](
+        elif '/consent' in new_url:
+            self.url_change_handlers['consent'](
                 old_url, new_url)
 
         # Check for challenge redirect (excluding two-factor)
@@ -374,10 +371,41 @@ class ScreenObserver:
             if self.callback_function:
                 self._request_manual_intervention("Closing Save Info Dialog Failed")
                 
-    def handle_consent_ad_free_subscription_handler(self, old_url, new_url):
+    def handle_consent_redirect(self, old_url, new_url):
         """Handle onetap save info page redirect"""
         self.logger.info(
-            f"Ad Free Subscription Consent page detected: {old_url} -> {new_url}")
+            f"Consent page detected: {old_url} -> {new_url}")
+        
+        response = False
+        
+        if "ad_free_subscription" in new_url:
+            response = self.handle_consent_ad_free_subscription()
+
+        if "user_cookie_choice_v2" in new_url:
+            response = self.handle_consent_user_cookie_choice()
+
+        if not response:
+            if self.callback_function:
+                self._request_manual_intervention("Closing Consent Failed")
+
+    def handle_challenge_redirect(self, old_url, new_url):
+        """Handle challenge redirect (excluding two-factor)"""
+        self.logger.warning(
+            f"Challenge redirect detected: {old_url} -> {new_url}")
+
+        # Call callback to notify about challenge
+        if self.callback_function:
+            self._request_manual_intervention("Challenge detected")
+
+    def handle_blocked_page(self, old_url, new_url):
+        """Handle blocked page"""
+        self.logger.warning(
+            f"Blocked detected: {old_url} -> {new_url}")
+        
+        if self.callback_function:
+            self._request_manual_intervention("Instagram detected ")
+
+    def handle_consent_ad_free_subscription(self):
         try:
             time.sleep(2)
             # Fix XPath for Get Started button
@@ -391,16 +419,13 @@ class ScreenObserver:
         except Exception as e:
             self.logger.error(
                 f"Error handling ad free subscription consent: {e}")
-
-            if self.callback_function:
-                self._request_manual_intervention("Closing Ad Free Subscription Consent Failed")
-
+            return False
 
         time.sleep(2)
-        # handle the upcoming modal
+
         try:
             # Check if dialog appears
-            element = self.driver.find_element(
+            dialogElement = self.driver.find_element(
                 By.XPATH, "//div[@role='dialog']")
 
             # Fix XPath for radio input
@@ -422,24 +447,22 @@ class ScreenObserver:
         except Exception as e:
             self.logger.error(
                 f"Error handling ad free subscription consent: {e}")
-
-            if self.callback_function:
-                self._request_manual_intervention("Closing Ad Free Subscription Consent Failed")
-
-    def handle_challenge_redirect(self, old_url, new_url):
-        """Handle challenge redirect (excluding two-factor)"""
-        self.logger.warning(
-            f"Challenge redirect detected: {old_url} -> {new_url}")
-
-        # Call callback to notify about challenge
-        if self.callback_function:
-            self._request_manual_intervention("Challenge detected")
-
-    def handle_blocked_page(self, old_url, new_url):
-        """Handle blocked page"""
-        self.logger.warning(
-            f"Blocked detected: {old_url} -> {new_url}")
+            return False
         
-        if self.callback_function:
-            self._request_manual_intervention("Instagram detected ")
 
+
+    def handle_consent_user_cookie_choice(self):
+        try:
+            time.sleep(2)
+            # Fix XPath for Get Started button
+            button_selector = "//div[@role='button' and contains(text(),'Allow all cookies')]"
+            element = self.driver.find_element(By.XPATH, button_selector)
+
+            self.human_mouse.human_like_move_to_element(element, click=True)
+            time.sleep(2)
+            self.logger.info("Successfully clicked Allow all cookies button")
+
+        except Exception as e:
+            self.logger.error(
+                f"Error handling user cookie choice consent: {e}")
+            return False
