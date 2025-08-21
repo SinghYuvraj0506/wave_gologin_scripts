@@ -1,4 +1,4 @@
-from utils.scrapping.ScreenObserver import ScreenObserver, callbackEventHandler
+from utils.scrapping.ScreenObserver import ScreenObserver
 import time
 from scripts.login import insta_login
 from scripts.exploreReel import explore_reels_randomly
@@ -13,6 +13,7 @@ from utils.WebhookUtils import WebhookUtils
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+import json
 
 
 class MainExecutor:
@@ -32,6 +33,16 @@ class MainExecutor:
         # Setup logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+
+    def observer_callback_handler(self, event_type:str, data):
+        """Callback function to handle any unexpected events like 'url_change', 'dialog_detected', 'action_required'"""
+        print(f"👮 Observer Event: {event_type} Detected")
+        print(f"Data: {json.dumps(data, indent=2)}")
+
+        if event_type == "action_required":
+            self.webhook.update_account_status(event="login_manual_interuption_required",payload=data)
+            self.cleanup()
+            raise Exception("Manual Interuption Required, Stopping the script to run further")
 
     def initialize_session(self):
         """Initialize GoLogin session and driver"""
@@ -60,7 +71,7 @@ class MainExecutor:
 
             # Start screen observer
             self.observer = ScreenObserver(
-                self.driver, callback_function=callbackEventHandler)
+                self.driver, callback_function=self.observer_callback_handler)
             self.observer.start_monitoring()
 
             # Force initial revival
@@ -128,8 +139,6 @@ class MainExecutor:
                     selectors_to_try = [
                         # Logged in indicators
                         ("svg[aria-label='Home']", "home_icon"),
-                        ("a[href='/']", "home_link"),
-                        ("[data-testid='mobile-nav-home']", "mobile_home"),
                         ("svg[aria-label*='Home']", "home_variant"),
 
                         # Login form indicators
@@ -187,17 +196,6 @@ class MainExecutor:
                     else:
                         raise
 
-            # Final fallback - check current URL and make educated guess
-            current_url = self.driver.current_url
-            if "instagram.com" in current_url:
-                if "/accounts/login" in current_url or current_url.count("/") <= 3:
-                    print("📍 URL suggests login page")
-                    self.logged_in = False
-                    return False
-                else:
-                    print("📍 URL suggests logged in state")
-                    self.logged_in = True
-                    return True
 
             # Ultimate fallback
             print("⚠️ Could not determine login status - assuming not logged in")
@@ -222,6 +220,7 @@ class MainExecutor:
                 self.driver.set_page_load_timeout(original_timeout)
             except:
                 pass
+
 
     def perform_login(self, username: str, password: str, secret_key: str):
         """Perform Instagram login and save cookies"""
@@ -369,9 +368,10 @@ class MainExecutor:
                     if not self.perform_login(username=username, password=password, secret_key=secret_key):
                         self.webhook.update_account_status("login_failed", {
                             "account_id": self.webhook.account_id,
-                            "cookies": self.cookies
+                            "cookies": self.cookies,
+                            "profile_id": self.gologin.profile_id
                         })
-                        return False
+                        return True
 
                     self.webhook.update_account_status("login_completed", {
                         "account_id": self.webhook.account_id,
@@ -380,11 +380,12 @@ class MainExecutor:
                     })
 
                 else:
+                    time.sleep(30)
+                    # observer will autocheck if the url matches some know problems then send manual invervention required ------------------
                     self.webhook.update_account_status("login_required", {
                         "account_id": self.webhook.account_id,
                         "cookies": self.cookies
                     })
-                    #  login required would trigger and ask to login again nd if login is genuiinloy faulted then it would say login failed
                     return True
 
             time.sleep(5)
