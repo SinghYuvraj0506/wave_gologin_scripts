@@ -65,7 +65,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                         webhook.update_campaign_status("sent_dm",{
                             "campaign_id": webhook.attributes.get("campaign_id",None),
                             "username": username,
-                            "data":None,
+                            "data":{},
                             "type":"MESSAGE"
                         })
                         print(f"✅ Message sent to @{username}")
