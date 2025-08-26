@@ -73,20 +73,40 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                     else:
                         raise Exception(f"❌ Failed to send message to @{username}")
 
+
                 else:
-                    if send_followup_to_user(driver, username, message_text, human_mouse, human_typing, observer):
-                        successful_messages.append(username)
+                    replied = check_for_reply(driver, username,observer)
+                    time.sleep(3)
+
+                    # user has replied do not followup -------
+                    if replied:
                         webhook.update_campaign_status("sent_dm",{
                             "campaign_id": webhook.attributes.get("campaign_id",None),
                             "username": username,
-                            "data":None,
-                            "type":"MESSAGE"
+                            "data":{
+                                "serial": message["serial"],
+                                "replied":True
+                            },
+                            "type":"FOLLOWUP"
                         })
-                        print(f"✅ Followup sent to @{username}")
-
+                    
                     else:
-                        raise Exception(f"❌ Failed to send followup to @{username}")
-                
+                        if send_message_to_user(driver, username, message_text, human_mouse, human_typing, observer):
+                            successful_messages.append(username)
+                            webhook.update_campaign_status("sent_dm",{
+                                "campaign_id": webhook.attributes.get("campaign_id",None),
+                                "username": username,
+                                "data":{
+                                    "serial": message["serial"],
+                                    "replied":False
+                                },
+                                "type":"FOLLOWUP"
+                            })
+                            print(f"✅ Followup sent to @{username}")
+                            
+                        else:
+                            raise Exception(f"❌ Failed to send followup to @{username}")
+
             else:
                 raise Exception(f"❌ User @{username} not found, skipping...")
             
@@ -126,8 +146,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
         print(f"❌ Failed users: {', '.join(failed_users)}")
 
     return successful_messages, failed_users
-
-
 
 
 def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_typing: HumanTypingBehavior, observer: ScreenObserver):
@@ -236,39 +254,51 @@ def send_message_to_user(driver, username, message_text, human_mouse: HumanMouse
         return False
 
 
-def send_followup_to_user(driver, username, message_text, human_mouse: HumanMouseBehavior,  human_typing: HumanTypingBehavior, observer: ScreenObserver):
+def check_for_reply(driver, username, observer: ScreenObserver):
     """
-    Send a message to a user from their profile page.
+    Check if user has replied in DM.
 
     Args:
         driver: Selenium WebDriver instance
-        username: Username to send message to
-        message_text: Message content
-        basicUtils: BasicUtils instance
-        human_mouse: HumanMouseBehavior instance
+        username: Username to send followup to
+        observer: ScreenObserver instance
 
-    Returns:
-        bool: True if message sent successfully, False otherwise
+    Returns: 
+        bool: If the user has replied
     """
     try:
-        # Find message input field
-        message_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "div[role='textbox']"))
+        # Wait for chat elements to load
+        observer.health_monitor.revive_driver("click_body")
+
+        chat_elems = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, 'div[data-virtualized="false"]')
+            )
         )
-        human_mouse.human_like_move_to_element(message_input, click=True)
-        human_typing.human_like_type(message_input, message_text)
 
-        time.sleep(3)
-        observer.health_monitor.revive_driver("screenshot")
-        message_input.send_keys(Keys.RETURN)
-        return True
+        if not chat_elems:
+            print(f"⚠️ No chat elements found for @{username}")
+            return False
 
-    except Exception as e:
-        print(f"❌ Error sending message to @{username}: {str(e)}")
+        # Get the last chat element
+        last_elem = chat_elems[-1]
+
+        # Check if last message has an anchor tag with username
+        try:
+            anchor = last_elem.find_element(By.CSS_SELECTOR, f'a[href*="{username}"]')
+            if anchor:
+                print(f"✅ @{username} has already replied. Skipping followup.")
+                return True
+        except:
+            # No anchor found → means no reply yet
+            print(f"ℹ️ @{username} has not replied. Sending followup...")
+
         return False
 
-
+    except Exception as e:
+        print(f"❌ Error in followup check/send for @{username}: {str(e)}")
+        return False
+    
 
 def message_users_from_list(driver, usernames_list, message_text, delay_range=(30, 60)):
     """
