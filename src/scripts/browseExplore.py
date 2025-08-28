@@ -36,7 +36,7 @@ def browse_explore_page(driver,observer: ScreenObserver):
         print(f"🖼️ Found {len(post_links)} explore posts.")
 
         # Step 3: Pick random 2–5 to view
-        to_view = random.sample(post_links, min(len(post_links), random.randint(2, 5)))
+        to_view = random.sample(post_links, min(len(post_links), random.randint(4, 8)))
 
         for i, post in enumerate(to_view):
             try:

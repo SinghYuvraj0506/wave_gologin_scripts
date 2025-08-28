@@ -10,6 +10,9 @@ from utils.scrapping.BasicUtils import BasicUtils
 from selenium.webdriver.common.keys import Keys
 from utils.scrapping.ScreenObserver import ScreenObserver
 from utils.WebhookUtils import WebhookUtils
+from scripts.exploreReel import explore_reels_randomly
+from scripts.browseExplore import browse_explore_page
+
 
 def search_and_message_users(driver, messages_to_send, observer: ScreenObserver, webhook: WebhookUtils, delay_between_messages=(30, 50)):
     """
@@ -34,25 +37,65 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     basicUtils.click_anchor_by_href("/direct/inbox/")
 
     observer.health_monitor.revive_driver("refresh")
-    
+
+
     # Check if we're on a valid user profile
     try:
         observer.health_monitor.revive_driver("screenshot")
-        WebDriverWait(driver, 8).until(
+        WebDriverWait(driver, 10).until(
             EC.url_contains("/direct/inbox/")
         )
     except TimeoutException:
-        raise Exception("Page not clicked")
+        try:
+            observer.health_monitor.revive_driver("refresh")
+            WebDriverWait(driver, 10).until(
+                EC.url_contains("/direct/inbox/")
+            )
+        except Exception as e:
+            raise Exception("Page not clicked")
+        
 
     print(f"🔍 Starting to search and message {len(messages_to_send)} users...")
     time.sleep(4)
 
+    # 👇 Pick a random iteration for warmup
+    warmup_index = random.randint(0, len(messages_to_send) - 1)
+
     for i, message in enumerate(messages_to_send):
-        print(f"\n📝 Processing user {i+1}/{len(messages_to_send)}: @{message['username']}")
+        print(
+            f"\n📝 Processing user {i+1}/{len(messages_to_send)}: @{message['username']}")
+
+        # 👇 If current iteration is the chosen one, run warmup
+        if i == warmup_index:
+            basicUtils.click_anchor_by_href("/")
+            observer.health_monitor.revive_driver("click_body")
+            time.sleep(2)
+
+            print("🔥 Running random warmup...")
+            random_warmup(driver=driver, observer=observer)
+            time.sleep(4)
+
+            basicUtils.click_anchor_by_href("/direct/inbox/")
+            try:
+                observer.health_monitor.revive_driver("screenshot")
+                WebDriverWait(driver, 7).until(
+                    EC.url_contains("/direct/inbox/")
+                )
+            except TimeoutException:
+                try:
+                    observer.health_monitor.revive_driver("refresh")
+                    WebDriverWait(driver, 10).until(
+                        EC.url_contains("/direct/inbox/")
+                    )
+                except Exception as e:
+                    raise Exception("Page not clicked")
+                
+            time.sleep(3)
+
 
         username = message['username']
         message_text = message['message']
-        message_type=message['type']
+        message_type = message['type']
 
         try:
             # Search for the username
@@ -62,68 +105,68 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 if message_type == "MESSAGE":
                     if send_message_to_user(driver, username, message_text, human_mouse, human_typing, observer):
                         successful_messages.append(username)
-                        webhook.update_campaign_status("sent_dm",{
-                            "campaign_id": webhook.attributes.get("campaign_id",None),
+                        webhook.update_campaign_status("sent_dm", {
+                            "campaign_id": webhook.attributes.get("campaign_id", None),
                             "username": username,
-                            "data":{},
-                            "type":"MESSAGE"
+                            "data": {},
+                            "type": "MESSAGE"
                         })
                         print(f"✅ Message sent to @{username}")
-                        
-                    else:
-                        raise Exception(f"❌ Failed to send message to @{username}")
 
+                    else:
+                        raise Exception(
+                            f"❌ Failed to send message to @{username}")
 
                 else:
-                    replied = check_for_reply(driver, username,observer)
+                    replied = check_for_reply(driver, username, observer)
                     time.sleep(3)
 
                     # user has replied do not followup -------
                     if replied:
-                        webhook.update_campaign_status("sent_dm",{
-                            "campaign_id": webhook.attributes.get("campaign_id",None),
+                        webhook.update_campaign_status("sent_dm", {
+                            "campaign_id": webhook.attributes.get("campaign_id", None),
                             "username": username,
-                            "data":{
+                            "data": {
                                 "serial": message["serial"],
-                                "replied":True
+                                "replied": True
                             },
-                            "type":"FOLLOWUP"
+                            "type": "FOLLOWUP"
                         })
-                    
+
                     else:
                         if send_message_to_user(driver, username, message_text, human_mouse, human_typing, observer):
                             successful_messages.append(username)
-                            webhook.update_campaign_status("sent_dm",{
-                                "campaign_id": webhook.attributes.get("campaign_id",None),
+                            webhook.update_campaign_status("sent_dm", {
+                                "campaign_id": webhook.attributes.get("campaign_id", None),
                                 "username": username,
-                                "data":{
+                                "data": {
                                     "serial": message["serial"],
-                                    "replied":False
+                                    "replied": False
                                 },
-                                "type":"FOLLOWUP"
+                                "type": "FOLLOWUP"
                             })
                             print(f"✅ Followup sent to @{username}")
-                            
+
                         else:
-                            raise Exception(f"❌ Failed to send followup to @{username}")
+                            raise Exception(
+                                f"❌ Failed to send followup to @{username}")
 
             else:
                 raise Exception(f"❌ User @{username} not found, skipping...")
-            
-            
+
         except RuntimeError as r:
             raise
 
         except Exception as e:
             failed_users.append(f"{username} (error: {str(e)})")
             print(f"❌ Error processing @{username}: {str(e)}")
-            webhook.update_campaign_status("sent_dm",{
-                    "campaign_id": webhook.attributes.get("campaign_id",None),
-                    "username": username,
-                    "data":{},
-                    "type":"MESSAGE",
-                    "failed":True
-                })
+            webhook.update_campaign_status("sent_dm", {
+                "campaign_id": webhook.attributes.get("campaign_id", None),
+                "username": username,
+                "data": {},
+                "type": "MESSAGE",
+                "failed": True
+            })
 
         # Random delay between messages to avoid rate limiting
         if i < len(messages_to_send) - 1:  # Don't wait after the last user
@@ -179,11 +222,11 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
         human_mouse.human_like_move_to_element(search_input, click=True)
         time.sleep(2)
 
-        elem=WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable(search_input))
+        elem = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable(search_input))
         human_typing.human_like_type(
             search_input, text=username, clear_field=True)
-        
+
         time.sleep(4)
 
         try:
@@ -285,7 +328,8 @@ def check_for_reply(driver, username, observer: ScreenObserver):
 
         # Check if last message has an anchor tag with username
         try:
-            anchor = last_elem.find_element(By.CSS_SELECTOR, f'a[href*="{username}"]')
+            anchor = last_elem.find_element(
+                By.CSS_SELECTOR, f'a[href*="{username}"]')
             if anchor:
                 print(f"✅ @{username} has already replied. Skipping followup.")
                 return True
@@ -298,7 +342,7 @@ def check_for_reply(driver, username, observer: ScreenObserver):
     except Exception as e:
         print(f"❌ Error in followup check/send for @{username}: {str(e)}")
         return False
-    
+
 
 def message_users_from_list(driver, usernames_list, message_text, delay_range=(30, 60)):
     """
@@ -332,3 +376,30 @@ def message_users_from_list(driver, usernames_list, message_text, delay_range=(3
     print(f"💬 Message: {message_text}")
 
     return search_and_message_users(driver, clean_usernames, message_text, delay_range)
+
+
+def random_warmup(driver, observer: ScreenObserver):
+    """
+    Function that warmup randomly.
+
+    Args:
+        driver: Selenium WebDriver instance
+        observer: ScreenObserver instance
+
+    """
+    try:
+        warmup_type = random.randint(1, 3)
+
+        time.sleep(3)
+
+        if (warmup_type == 1):
+            explore_reels_randomly(
+                driver, observer, count=random.randint(6, 10))
+        elif (warmup_type == 2):
+            browse_explore_page(driver, observer)
+        else:
+            print("Viewing stories")
+            browse_explore_page(driver, observer)
+
+    except Exception as e:
+        print("❌ Found error in warming up")

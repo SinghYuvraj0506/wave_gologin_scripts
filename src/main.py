@@ -15,6 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import json
 import sys
+import random
 
 
 class MainExecutor:
@@ -304,7 +305,7 @@ class MainExecutor:
                 warmup_type = self.webhook.attributes.get("warmup_type", 1)
 
                 if (warmup_type == 1):
-                    explore_reels_randomly(self.driver, self.observer)
+                    explore_reels_randomly(self.driver, self.observer, count=random.randint(6,10))
                 elif (warmup_type == 2):
                     browse_explore_page(self.driver, self.observer)
                 else:
