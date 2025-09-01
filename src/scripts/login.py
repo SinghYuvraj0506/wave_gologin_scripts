@@ -8,8 +8,9 @@ from utils.scrapping.HumanTypingBehavior import HumanTypingBehavior
 from config import Config
 from scripts.twofactorCheck import handle_two_factor_authentication
 import time
+from utils.scrapping.ScreenObserver import ScreenObserver
 
-def insta_login(driver, username:str, password:str, secret_key:str):
+def insta_login(driver, username:str, password:str, secret_key:str, observer:ScreenObserver):
     """
     Logs into Instagram using the provided Selenium driver.
 
@@ -50,10 +51,20 @@ def insta_login(driver, username:str, password:str, secret_key:str):
         if not handle_two_factor_authentication(driver, secret_key=secret_key):
             return False
         
-        time.sleep(70)
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
-        print("✅ Login successful!")
-        return True
+        try:
+            time.sleep(40)
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
+            print("✅ Login successful!")
+            return True
+
+        except TimeoutException as e:
+            print(f"❌ Error during login: A timeout occurred. Reviving again")
+            observer.health_monitor.revive_driver("refresh")
+            time.sleep(2)
+            observer.health_monitor.revive_driver("click_body")
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
+            print("✅ Login successful!")
+            return True
 
     except TimeoutException as e:
         print(f"❌ Error during login: A timeout occurred. The page might be slow to load or an element was not found in time.")

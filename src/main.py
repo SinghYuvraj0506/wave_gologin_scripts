@@ -234,7 +234,7 @@ class MainExecutor:
 
             # Perform login
             login_success = insta_login(
-                driver=self.driver, username=username, password=password, secret_key=secret_key)
+                driver=self.driver, username=username, password=password, secret_key=secret_key, observer=self.observer)
 
             if login_success:
                 time.sleep(3)  # Wait for login to complete
