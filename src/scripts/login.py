@@ -10,6 +10,7 @@ from scripts.twofactorCheck import handle_two_factor_authentication
 import time
 from utils.scrapping.ScreenObserver import ScreenObserver
 
+
 def insta_login(driver, username:str, password:str, secret_key:str, observer:ScreenObserver):
     """
     Logs into Instagram using the provided Selenium driver.
@@ -27,6 +28,8 @@ def insta_login(driver, username:str, password:str, secret_key:str, observer:Scr
 
         driver.get("https://www.instagram.com")
         wait = WebDriverWait(driver, 15)
+
+        observer.health_monitor.revive_driver("click_body")
 
         human_mouse.random_mouse_jitter(4)
 
@@ -51,20 +54,21 @@ def insta_login(driver, username:str, password:str, secret_key:str, observer:Scr
         if not handle_two_factor_authentication(driver, secret_key=secret_key):
             return False
         
-        try:
-            time.sleep(40)
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
-            print("✅ Login successful!")
-            return True
+        time.sleep(40)
+        print("✅ Login Script Execution done!")
+        return True
+        # try:
+        #     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
+        #     print("✅ Login successful!")
+        #     return True
 
-        except TimeoutException as e:
-            print(f"❌ Error during login: A timeout occurred. Reviving again")
-            observer.health_monitor.revive_driver("refresh")
-            time.sleep(2)
-            observer.health_monitor.revive_driver("click_body")
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
-            print("✅ Login successful!")
-            return True
+        # except TimeoutException as e:
+        #     print(f"❌ Error during login: A timeout occurred. Reviving again")
+        #     observer.health_monitor.revive_driver("refresh")
+        #     time.sleep(2)
+        #     observer.health_monitor.revive_driver("click_body")
+        #     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/{}/']".format(username))))
+        #     return True
 
     except TimeoutException as e:
         print(f"❌ Error during login: A timeout occurred. The page might be slow to load or an element was not found in time.")
