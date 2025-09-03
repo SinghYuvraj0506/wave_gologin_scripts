@@ -31,6 +31,7 @@ class MainExecutor:
         self.initialized = False
         self.cookies = None
         self.webhook = webhook
+        self.need_task_retry = False
 
         # Setup logging
         logging.basicConfig(level=logging.INFO)
@@ -318,6 +319,9 @@ class MainExecutor:
                     "cookies": self.cookies
                 })
 
+                print("🏠 Returning to Instagram home page.")
+                self.driver.get("https://www.instagram.com/")
+
             elif (self.task_type == "START_CAMPAIGNING"):
                 search_and_message_users(
                     driver=self.driver,
@@ -334,9 +338,6 @@ class MainExecutor:
                         "delay_in_seconds": self.webhook.attributes.get("next_process_in")
                     })
 
-            else:
-                raise Exception("Invalid Task Type")
-
             time.sleep(5)
             return True
 
@@ -345,6 +346,11 @@ class MainExecutor:
 
         except Exception as e:
             self.logger.error(f"❌ Activities failed: {e}")
+
+            # retry the task again, because it may have happended due to page not loading ------
+            if(self.task_type != "LOGIN"):
+                self.need_task_retry = True
+
             return False
 
     def execute(self):
@@ -414,6 +420,7 @@ class MainExecutor:
 
         finally:
             self.cleanup()
+
 
     def cleanup(self):
         """Clean up resources"""

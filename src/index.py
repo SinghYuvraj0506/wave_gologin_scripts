@@ -22,7 +22,9 @@ def init():
                 webhook.update_task_status("task_completed")
             else:
                 print("❌ Execution failed, task failed")
-                webhook.update_task_status("task_failed")
+                webhook.update_task_status("task_failed",{
+                    "task_retry":executor.need_task_retry
+                })
                 os.environ["SAVE_LOGS"] = "true"
 
 

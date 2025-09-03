@@ -85,4 +85,3 @@ def explore_reels_randomly(driver, observer: ScreenObserver,count=5, min_watch=4
             return
 
     print("\n✅ Done exploring reels.")
-    driver.get("https://www.instagram.com/")
