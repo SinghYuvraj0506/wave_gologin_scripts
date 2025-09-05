@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, ElementNotInteractableException, StaleElementReferenceException
 import pyperclip
+import traceback
 
 
 class HumanTypingBehavior:
@@ -158,8 +159,10 @@ class HumanTypingBehavior:
 
     def human_like_type(self, element, text, clear_field=True, typing_speed='normal'):
         """
-        Type text into element with human-like behavior
-        FIXED: Better handling of typos and corrections
+        Type text into element with human-like behavior.
+        - If text > 50 chars, randomly decide:
+            - 30% chance: type letter by letter
+            - 70% chance: paste whole text at once
         
         Args:
             element: WebElement to type into
@@ -171,110 +174,95 @@ class HumanTypingBehavior:
             bool: Success status
         """
         try:
-            # Wait for element to be present and clickable
+            text = self.decode_text(text)
+
             wait = WebDriverWait(self.driver, 10)
             target = wait.until(EC.element_to_be_clickable(element))
-            
-            # Click on the element first
+
             target.click()
             time.sleep(random.uniform(0.1, 0.3))
-            
-            # Clear field if requested
+
             if clear_field:
                 target.clear()
                 time.sleep(random.uniform(0.05, 0.15))
-            
-            # Adjust base typing speed
+
+            # Paste directly if text is long and probability > 0.3
+            if len(text) > 50 and random.random() > 0.3:
+                self.driver.execute_script("arguments[0].value = arguments[1];", target, text)
+                self.driver.execute_script("""
+                    const event = new Event('input', { bubbles: true });
+                    arguments[0].dispatchEvent(event);
+                """, target)
+                print(f"[PASTE MODE] Pasted full text ({len(text)} chars)")
+                time.sleep(random.uniform(0.2, 0.6))
+                return True
+
+            # Otherwise, type character by character
             speed_multipliers = {
                 'slow': 1.5,
                 'normal': 1.0,
                 'fast': 0.6
             }
             speed_multiplier = speed_multipliers.get(typing_speed, 1.0)
-            
+
             typed_text = ""
             i = 0
-            
+
             while i < len(text):
                 try:
                     char = text[i]
                     previous_char = typed_text[-1] if typed_text else None
-                    
-                    # Determine if we should make a typo
-                    # if self.should_make_typo(char, i, len(text)):
-                    #     # Make a typo
-                    #     typo_char = self.get_typo_char(char)
-                        
-                    #     if typo_char and typo_char.strip(): 
-                    #         # Type the typo
-                    #         target.send_keys(typo_char)
-                    #         typed_text += typo_char
-                            
-                    #         # Pause before realizing mistake
-                    #         correction_delay = random.uniform(0.3, 1.2)
-                    #         time.sleep(correction_delay)
-                            
-                    #         # Correct the typo
-                    #         backspace_count = len(typo_char)
-                    #         for _ in range(backspace_count):
-                    #             target.send_keys(Keys.BACKSPACE)
-                            
-                    #         # Update typed_text
-                    #         typed_text = typed_text[:-backspace_count]
-                            
-                    #         # Small pause after correction
-                    #         time.sleep(random.uniform(0.1, 0.3))
-                    
-                    
-                    if char.isascii():
-                        # Normal keyboard character
+
+                    if char == "\n":
+                        target.send_keys(Keys.SHIFT, Keys.ENTER)
+                    elif char.isascii():
                         target.send_keys(char)
                     else:
-                        # Emoji or special char — paste instead of typing
-                        pyperclip.copy(char)
-                        ActionChains(self.driver)\
-                            .key_down(Keys.CONTROL)\
-                            .send_keys("v")\
-                            .key_up(Keys.CONTROL)\
-                            .perform()
+                        # Handle emoji/special char by pasting typed_text + current char
+                        self.driver.execute_script("arguments[0].value = arguments[1];", target, typed_text + char)
+                        self.driver.execute_script("""
+                            const event = new Event('input', { bubbles: true });
+                            arguments[0].dispatchEvent(event);
+                        """, target)
 
                     typed_text += char
-                    
-                    # Calculate typing delay
+
                     typing_delay = self.get_typing_speed(char, previous_char) * speed_multiplier
-                    
-                    # Add some random variation
                     typing_delay += random.uniform(-0.02, 0.02)
-                    
-                    # Ensure minimum delay
                     typing_delay = max(0.01, typing_delay)
-                    
+
                     time.sleep(typing_delay)
-                    
-                    # Random pauses (thinking/reading) - reduce for short numeric inputs like 2FA
+
                     if len(text) > 6 and self.should_pause(i, len(text)):
-                        pause_duration = random.uniform(0.5, 2.0)
-                        time.sleep(pause_duration)
-                    
+                        time.sleep(random.uniform(0.5, 2.0))
+
                     i += 1
-                except StaleElementReferenceException as e:
-                    print("Stale error occured, resetting the element")
+
+                except StaleElementReferenceException:
+                    print("Stale element error, refinding...")
                     target = wait.until(EC.element_to_be_clickable(element))
                     continue
-            
-            # Final pause after typing
+
             time.sleep(random.uniform(0.2, 0.8))
-            print("Typed text is", typed_text)
+            print("[TYPED MODE] Finished typing:", typed_text)
             return True
-            
+
         except (TimeoutException, ElementNotInteractableException) as e:
             print(f"Error typing into element: {e}")
             return False
         except Exception as e:
+            traceback.print_exc()
             print(f"Unexpected error while typing: {e}")
             return False
-        
 
+
+    def decode_text(self, text: str) -> str:
+        """Decode text with surrogate pairs (\\ud83d\\ude0a) into proper Unicode + emojis."""
+        try:
+            # return json.loads(f'"{text}"')
+            return text.encode("utf-16", "surrogatepass").decode("utf-16")
+        except Exception:
+            return text
 
     def simulate_form_filling(self, form_data, delay_between_fields=None):
         """

@@ -5,7 +5,7 @@ WEBHOOK_URL=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.intern
 WEBHOOK_SECRET=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/WEBHOOK_SECRET)
 
 # Construct payload
-PAYLOAD="{\"task_id\":\"$TASK_ID\",\"event\":\"vm_shutdown\",\"payload\":\"{}\"}"
+PAYLOAD="{\"task_id\":\"$TASK_ID\",\"event\":\"vm_shutdown\",\"payload\":{}}"
 
 # Create signature (HMAC SHA256)
 SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $2}')
