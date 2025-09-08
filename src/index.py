@@ -28,6 +28,12 @@ def init():
                 os.environ["SAVE_LOGS"] = "true"
 
 
+    except RuntimeError as r:
+        print(" ❌ Found Runtime Error >> ", str(r))
+        if(webhook is not None and webhook.update_task_status is not None):
+            webhook.update_task_status("task_completed")
+
+
     except Exception as e:
         print(f'❌ {e}')
         os.environ["SAVE_LOGS"] = "true"
