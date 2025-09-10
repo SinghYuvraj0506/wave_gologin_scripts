@@ -9,7 +9,7 @@ from utils.scrapping.BasicUtils import BasicUtils
 from utils.scrapping.HumanMouseBehavior import HumanMouseBehavior
 from utils.scrapping.ScreenObserver import ScreenObserver
 
-def explore_reels_randomly(driver, observer: ScreenObserver,count=5, min_watch=4, max_watch=12):
+def explore_reels_randomly(driver, observer: ScreenObserver,count=3, min_watch=4, max_watch=12):
     basicUtils = BasicUtils(driver)
     human_mouse = HumanMouseBehavior(driver)
     observer.health_monitor.revive_driver("click_body")

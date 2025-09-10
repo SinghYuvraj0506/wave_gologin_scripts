@@ -306,7 +306,7 @@ class MainExecutor:
                 warmup_type = self.webhook.attributes.get("warmup_type", 1)
 
                 if (warmup_type == 1):
-                    explore_reels_randomly(self.driver, self.observer, count=random.randint(6,10))
+                    explore_reels_randomly(self.driver, self.observer, count=random.randint(1,3))
                 elif (warmup_type == 2):
                     browse_explore_page(self.driver, self.observer)
                 else:

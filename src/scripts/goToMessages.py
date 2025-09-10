@@ -60,7 +60,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     time.sleep(4)
 
     # 👇 Pick a random iteration for warmup
-    warmup_index = random.randint(0, len(messages_to_send) - 1)
+    warmup_index = random.randint(-len(messages_to_send) + 1, len(messages_to_send) - 1)
 
     for i, message in enumerate(messages_to_send):
         print(
@@ -92,7 +92,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                     raise Exception("Page not clicked")
                 
             time.sleep(3)
-
 
         username = message['username']
         message_text = message['message']
@@ -395,7 +394,7 @@ def random_warmup(driver, observer: ScreenObserver):
 
         if (warmup_type == 1):
             explore_reels_randomly(
-                driver, observer, count=random.randint(6, 10))
+                driver, observer, count=random.randint(1, 3))
         elif (warmup_type == 2):
             browse_explore_page(driver, observer)
         else:
