@@ -122,7 +122,7 @@ class WebhookUtils:
         Update the Account status
 
         Args:
-            event: 'login_completed', 'warmup_completed','login_failed','login_manual_interuption_required', 'login_required', 'update_profile_image'
+            event: 'login_completed', 'warmup_completed','login_failed', 'wrong_login_data','login_manual_interuption_required', 'login_required', 'update_profile_image'
             payload: any extra data that need to transfer
 
         Returns:

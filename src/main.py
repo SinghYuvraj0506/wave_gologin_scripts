@@ -235,7 +235,7 @@ class MainExecutor:
 
             # Perform login
             login_success = insta_login(
-                driver=self.driver, username=username, password=password, secret_key=secret_key, observer=self.observer)
+                driver=self.driver, username=username, password=password, secret_key=secret_key, observer=self.observer, webhook=self.webhook)
 
             if login_success:
                 time.sleep(3)  # Wait for login to complete
@@ -259,6 +259,9 @@ class MainExecutor:
             else:
                 self.logger.error("❌ Login function returned failure")
                 return False
+            
+        except RuntimeError:
+            raise
 
         except Exception as e:
             self.logger.error(f"❌ Login process failed: {e}")
