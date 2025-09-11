@@ -332,11 +332,9 @@ class MainExecutor:
                 )
 
                 # schedule next bactch of dm processing
-                if self.webhook.attributes.get("next_process_in") is not None:
-                    self.webhook.update_campaign_status("schedule_next_iteration", {
-                        "campaign_id": self.webhook.attributes.get("campaign_id"),
-                        "delay_in_seconds": self.webhook.attributes.get("next_process_in")
-                    })
+                self.webhook.update_campaign_status("schedule_next_iteration", {
+                    "campaign_id": self.webhook.attributes.get("campaign_id")
+                })
 
             time.sleep(5)
             return True
