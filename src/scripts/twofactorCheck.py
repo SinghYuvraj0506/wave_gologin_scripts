@@ -43,6 +43,7 @@ def handle_two_factor_authentication(driver, secret_key:str, webhook:WebhookUtil
         if not secret_key or not is_valid_totp_secret(secret_key):
             webhook.update_account_status("wrong_login_data",{
                     "account_id":webhook.account_id,
+                    "profile_id": webhook.profile_id,
                     "error_type":"SECRET"
                 })
             raise RuntimeError("❌ Invalid TOTP secret key provided.")
@@ -81,6 +82,7 @@ def handle_two_factor_authentication(driver, secret_key:str, webhook:WebhookUtil
             if error_element:
                 webhook.update_account_status("wrong_login_data",{
                     "account_id":webhook.account_id,
+                    "profile_id": webhook.profile_id,
                     "error_type":"SECRET"
                 })
                 raise RuntimeError("❌ Invalid 2FA code detected (Instagram rejected it).")

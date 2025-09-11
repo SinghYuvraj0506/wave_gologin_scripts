@@ -55,6 +55,7 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
             if error_field and error_field.is_displayed():
                 webhook.update_account_status("wrong_login_data",{
                     "account_id":webhook.account_id,
+                    "profile_id": webhook.profile_id,
                     "error_type":"CREDENTIALS"
                 })
                 raise RuntimeError("❌ Invalid credentials detected (field has aria-describedby=slfErrorAlert)")
