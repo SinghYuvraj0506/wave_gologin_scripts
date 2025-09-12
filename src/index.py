@@ -1,10 +1,11 @@
+import os
+from utils.WebhookUtils import WebhookUtils
 from main import MainExecutor
 from pyvirtualdisplay.smartdisplay import SmartDisplay
 from config import Config
 from dotenv import load_dotenv
 load_dotenv()
-from utils.WebhookUtils import WebhookUtils
-import os
+
 
 def init():
     try:
@@ -22,27 +23,23 @@ def init():
                 webhook.update_task_status("task_completed")
             else:
                 print("❌ Execution failed, task failed")
-                webhook.update_task_status("task_failed",{
-                    "task_retry":executor.need_task_retry
+                webhook.update_task_status("task_failed", {
+                    "task_retry": executor.need_task_retry
                 })
                 os.environ["SAVE_LOGS"] = "true"
 
-
     except RuntimeError as r:
         print(" ❌ Found Runtime Error >> ", str(r))
-        if(webhook is not None and webhook.update_task_status is not None):
+        if (webhook is not None):
             webhook.update_task_status("task_completed")
-
 
     except Exception as e:
         print(f'❌ {e}')
         os.environ["SAVE_LOGS"] = "true"
 
-        if(webhook is not None and webhook.update_task_status is not None):
+        if (webhook is not None):
             webhook.update_task_status("task_failed")
-
 
 
 if __name__ == '__main__':
     init()
-    
