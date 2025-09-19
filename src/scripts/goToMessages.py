@@ -60,7 +60,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     time.sleep(4)
 
     # 👇 Pick a random iteration for warmup
-    warmup_index = random.randint(-len(messages_to_send) + 1, len(messages_to_send) - 1)
+    warmup_index = random.randint(-(len(messages_to_send)*2) + 1, len(messages_to_send) - 1)
 
     for i, message in enumerate(messages_to_send):
         print(
@@ -392,14 +392,14 @@ def random_warmup(driver, observer: ScreenObserver):
 
         time.sleep(3)
 
-        if (warmup_type == 1):
-            explore_reels_randomly(
-                driver, observer, count=random.randint(1, 3))
-        elif (warmup_type == 2):
-            browse_explore_page(driver, observer)
-        else:
-            print("Viewing stories")
-            browse_explore_page(driver, observer)
+        browse_explore_page(driver, observer)
+        # if (warmup_type == 1):
+        #     explore_reels_randomly(
+        #         driver, observer, count=random.randint(1, 3))
+        # elif (warmup_type == 2):
+        # else:
+        #     print("Viewing stories")
+        #     browse_explore_page(driver, observer)
 
     except Exception as e:
         print("❌ Found error in warming up")
