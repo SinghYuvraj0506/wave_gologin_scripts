@@ -22,7 +22,7 @@ def build_proxyconfig(session:str, country:str, city:str) -> dict:
     
     elif (Config.PROXY_PROVIDER == "EVOMI"):
         city = city.lower().rstrip().replace("-",".").replace(" ",".")
-        password = f"{Config.EVOMI_PASSWORD}_country-{country}_city-{city}_session-{session}_lifetime-60"
+        password = f"{Config.EVOMI_PASSWORD}_country-{country}_city-{city}_session-{session[:9]}_lifetime-60"
 
         return {
             "mode": "http",
