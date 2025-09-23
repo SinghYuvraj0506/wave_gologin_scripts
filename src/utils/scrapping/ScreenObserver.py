@@ -467,3 +467,37 @@ class ScreenObserver:
             self.logger.error(
                 f"Error handling user cookie choice consent: {e}")
             return False
+        
+    def reduce_bandwidth_for_driver(self, enable=True):
+        """
+        Toggle bandwidth-saving mode by blocking or unblocking heavy resources (images, videos, fonts).
+        
+        Args:
+            driver: Selenium WebDriver instance
+            enable (bool): True = block heavy resources, False = unblock (restore normal behavior)
+        """
+        try:
+            # Always enable Network domain first
+            self.driver.execute_cdp_cmd("Network.enable", {})
+
+            if enable:
+                blocked_urls = [
+                    "*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.avif",
+                    "*.mp4", "*.m3u8", "*.webm",
+                    "*.svg", "*.ico",
+                    "*.woff", "*.woff2", "*.ttf", "*.otf"
+                ]
+                self.driver.execute_cdp_cmd("Network.setBlockedURLs", {"urls": blocked_urls})
+                self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
+                print("🚫 Bandwidth saver enabled (images/videos/fonts blocked).")
+            else:
+                # Passing empty list removes the block
+                self.driver.execute_cdp_cmd("Network.setBlockedURLs", {"urls": []})
+                self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": False})
+                print("✅ Bandwidth saver disabled (all resources allowed).")
+
+            return True
+
+        except Exception as e:
+            print(f"⚠️ Failed to toggle bandwidth saver (enable={enable}): {e}")
+            return False

@@ -8,15 +8,31 @@ import hashlib
 import requests
 
 def build_proxyconfig(session:str, country:str, city:str) -> dict:
-    user = f"{Config.SOAX_USER_NAME}-country-{country}-city-{city}-sessionid-{session}-sessionlength-3600-opt-wb"
+    if(Config.PROXY_PROVIDER == "SOAX"):
+        city = city.lower().rstrip()
+        user = f"{Config.SOAX_USER_NAME}-country-{country}-city-{city}-sessionid-{session}-sessionlength-3600-opt-wb"
 
-    return {
-        "mode": "http",
-        "host": "proxy.soax.com",
-        "port": 5000,
-        "username": user,
-        "password": Config.SOAX_PASSWORD
-    }
+        return {
+            "mode": "http",
+            "host": Config.SOAX_HOST,
+            "port": int(Config.SOAX_PORT),
+            "username": user,
+            "password": Config.SOAX_PASSWORD
+        }
+    
+    elif (Config.PROXY_PROVIDER == "EVOMI"):
+        city = city.lower().rstrip().replace("-",".").replace(" ",".")
+        password = f"{Config.EVOMI_PASSWORD}_country-{country}_city-{city}_session-{session}_lifetime-60"
+
+        return {
+            "mode": "http",
+            "host": Config.EVOMI_HOST,
+            "port": int(Config.EVOMI_PORT),
+            "username": Config.EVOMI_USER_NAME,
+            "password": password
+        }
+
+    return None
 
 
 def get_ip_proxy(driver) -> str:

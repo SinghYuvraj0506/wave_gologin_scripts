@@ -92,3 +92,4 @@ class DriverHealthMonitor:
                     if self.revive_driver(method):
                         break
                     time.sleep(2)  # Longer delay between attempts when timing out
+

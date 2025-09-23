@@ -13,6 +13,7 @@ def browse_explore_page(driver,observer: ScreenObserver):
     human_mouse = HumanMouseBehavior(driver)
     observer.health_monitor.revive_driver("click_body")
     human_mouse.random_mouse_jitter(duration=5)
+    observer.reduce_bandwidth_for_driver(enable=True)
 
     try:
         print("🧭 Navigating to Instagram Explore Page...")
@@ -73,5 +74,8 @@ def browse_explore_page(driver,observer: ScreenObserver):
 
     except NoSuchElementException or TimeoutException:
         print("❌ No posts found on explore page.")
+    
+    finally:
+        observer.reduce_bandwidth_for_driver(enable=False)
 
     
