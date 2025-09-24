@@ -332,7 +332,7 @@ class MainExecutor:
 
                 while (retry_count <= 3):
                     print(f"Attempting #{retry_count} to process {len(messages)} messages")
-                    successful_fresh_dms = search_and_message_users(
+                    successful_fresh_dms, _ ,_ = search_and_message_users(
                         driver=self.driver,
                         messages_to_send=messages,
                         observer=self.observer,

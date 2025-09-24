@@ -60,8 +60,8 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     print(f"🔍 Starting to search and message {len(messages_to_send)} users...")
     time.sleep(4)
 
-    # 👇 Pick a random iteration for warmup
-    warmup_index = random.randint(-(len(messages_to_send)*2) + 1, len(messages_to_send) - 1)
+    # 👇 Pick a random iteration for warmup , no warmuo befire the last iterations
+    warmup_index = random.randint(-(len(messages_to_send)*2) + 1, len(messages_to_send) - 2)
 
     for i, message in enumerate(messages_to_send):
         print(
