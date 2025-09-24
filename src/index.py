@@ -39,6 +39,10 @@ def init():
 
         if (webhook is not None):
             webhook.update_task_status("task_failed")
+    
+    finally:
+        with open("/tmp/script_executed.flag", "w") as f:
+            f.write("true")
 
 
 if __name__ == '__main__':

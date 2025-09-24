@@ -4,6 +4,13 @@ TASK_ID=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/c
 WEBHOOK_URL=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/WEBHOOK_URL)
 WEBHOOK_SECRET=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/WEBHOOK_SECRET)
 
+FLAG_FILE="/tmp/script_executed.flag"
+
+if [[ -f "$FLAG_FILE" ]]; then
+  echo "✅ Main script executed, skipping shutdown webhook."
+  exit 0
+fi
+
 # Construct payload
 PAYLOAD="{\"task_id\":\"$TASK_ID\",\"event\":\"vm_shutdown\",\"payload\":{}}"
 
