@@ -29,6 +29,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     basicUtils = BasicUtils(driver)
 
     successful_messages = []
+    successful_fresh_dms = 0
     failed_users = []
 
     observer.health_monitor.revive_driver("click_body")
@@ -105,6 +106,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 if message_type == "MESSAGE":
                     if send_message_to_user(driver, username, message_text, human_mouse, human_typing, observer):
                         successful_messages.append(username)
+                        successful_fresh_dms += 1
                         webhook.update_campaign_status("sent_dm", {
                             "campaign_id": webhook.attributes.get("campaign_id", None),
                             "username": username,
@@ -188,7 +190,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     if failed_users:
         print(f"❌ Failed users: {', '.join(failed_users)}")
 
-    return successful_messages, failed_users
+    return successful_fresh_dms, successful_messages, failed_users
 
 
 def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_typing: HumanTypingBehavior, observer: ScreenObserver):

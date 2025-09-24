@@ -44,7 +44,7 @@ class MainExecutor:
 
         if event_type == "action_required":
             self.webhook.update_account_status(event="login_manual_interuption_required", payload={
-                                               "metadata":data, "account_id": self.webhook.account_id})
+                                               "metadata": data, "account_id": self.webhook.account_id})
             self.webhook.update_task_status("task_failed")
             self.cleanup()
             print("Manual Interuption Required, Stopping the script to run further")
@@ -259,7 +259,7 @@ class MainExecutor:
             else:
                 self.logger.error("❌ Login function returned failure")
                 return False
-            
+
         except RuntimeError:
             raise
 
@@ -326,14 +326,40 @@ class MainExecutor:
                 self.driver.get("https://www.instagram.com/")
 
             elif (self.task_type == "START_CAMPAIGNING"):
-                search_and_message_users(
-                    driver=self.driver,
-                    messages_to_send=self.webhook.attributes.get(
-                        'messages_to_send', []),
-                    observer=self.observer,
-                    webhook=self.webhook
-                )
+                retry_count = 1
+                messages = self.webhook.attributes.get(
+                    'messages_to_send', [])
 
+                while (retry_count <= 3):
+                    print(f"Attempting #{retry_count} to process {len(messages)} messages")
+                    successful_fresh_dms = search_and_message_users(
+                        driver=self.driver,
+                        messages_to_send=messages,
+                        observer=self.observer,
+                        webhook=self.webhook
+                    )
+
+                    recived_dms_count = sum(1 for m in messages if m.get("message") == "MESSAGE")
+
+                    # means some of the messages have failed
+                    if (successful_fresh_dms >= recived_dms_count):
+                        break
+
+                    # send webhook and ask for some extra dms-----------
+                    response = self.webhook.update_campaign_status("call_for_extra_dms",{
+                        "campaign_id": self.webhook.attributes.get("campaign_id", None),
+                        "qty": recived_dms_count - successful_fresh_dms
+                    })
+
+                    extra_data = response.get("data",[])
+                    if not extra_data:
+                        print("⚠️ No extra messages received, stopping retries")
+                        break
+
+                    messages = extra_data
+                    time.sleep(20)
+                    retry_count += 1
+                    
             time.sleep(5)
             return True
 
@@ -344,7 +370,7 @@ class MainExecutor:
             self.logger.error(f"❌ Activities failed: {e}")
 
             # retry the task again, because it may have happended due to page not loading ------
-            if(self.task_type != "LOGIN"):
+            if (self.task_type != "LOGIN"):
                 self.need_task_retry = True
 
             return False
@@ -416,7 +442,6 @@ class MainExecutor:
 
         finally:
             self.cleanup()
-
 
     def cleanup(self):
         """Clean up resources"""

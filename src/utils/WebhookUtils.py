@@ -103,7 +103,7 @@ class WebhookUtils:
         Update the Camapaign status
 
         Args:
-            event: Name of event, possible options 'sent_dm', 'schedule_next_iteration'
+            event: Name of event, possible options 'sent_dm', 'call_for_extra_dms'
             payload: any extra data that need to transfer poosible fields are 
                     :campaign_id, username, data, type, failed
 
