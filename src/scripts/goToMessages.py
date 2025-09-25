@@ -292,7 +292,30 @@ def send_message_to_user(driver, username, message_text, human_mouse: HumanMouse
         time.sleep(3)
         observer.health_monitor.revive_driver("screenshot")
         message_input.send_keys(Keys.RETURN)
-        return True
+
+        # Wait a moment for the sending indicator to appear/disappear
+        try:
+            # If the sending icon appears, wait for it to disappear
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "svg[aria-label='IGD message sending status icon']")
+                )
+            )
+            print("⏳ Sending indicator detected, waiting for completion...")
+
+
+            WebDriverWait(driver, 10).until_not(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "svg[aria-label='IGD message sending status icon']")
+                )
+            )
+            print("✅ Message sent successfully.")
+            return True
+
+        except TimeoutException:
+            # If the icon never appeared, assume message sent instantly
+            print("✅ Message sent (no sending indicator).")
+            return True
 
     except Exception as e:
         print(f"❌ Error sending message to @{username}: {str(e)}")
