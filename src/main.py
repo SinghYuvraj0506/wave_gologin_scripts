@@ -339,7 +339,7 @@ class MainExecutor:
                         webhook=self.webhook
                     )
 
-                    recived_dms_count = sum(1 for m in messages if m.get("message") == "MESSAGE")
+                    recived_dms_count = sum(1 for m in messages if m.get("type") == "MESSAGE")
 
                     # means some of the messages have failed
                     if (successful_fresh_dms >= recived_dms_count):
