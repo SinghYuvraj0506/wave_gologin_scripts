@@ -38,9 +38,12 @@ def build_proxyconfig(session:str, country:str, city:str) -> dict:
 def get_ip_proxy(driver) -> str:
     driver.get("https://ipinfo.io/json")
     time.sleep(3)
-    resp = driver.find_element(By.TAG_NAME, "pre").text
+
+    # ipinfo.io/json returns raw JSON as the body
+    resp = driver.find_element(By.TAG_NAME, "body").text  
     data = json.loads(resp)
-    proxy_ip = data["ip"]
+
+    proxy_ip = data.get("ip")
     print("🧠 Proxy Detected:", data)
     return proxy_ip
 
