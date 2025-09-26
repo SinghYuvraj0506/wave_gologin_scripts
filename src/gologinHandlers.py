@@ -6,6 +6,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 from config import Config
 from utils.basicHelpers import build_proxyconfig
 import traceback
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 import time
 
 class BaseGologinError(Exception):
@@ -27,42 +30,42 @@ class GologinHandler:
             'token': token,
             'extra_params': [
                 # '--headless=new',
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--disable-gpu-sandbox',
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+                "--window-size=1920,1080",
 
-                # VULKAN-SPECIFIC FIXES
-                '--disable-vulkan',
-                '--disable-vulkan-surface',
-                '--disable-vulkan-fallback-to-gl-for-testing',
-                '--use-vulkan=disabled',
-                '--disable-features=Vulkan'
+                # # VULKAN-SPECIFIC FIXES
+                # '--disable-vulkan',
+                # '--disable-vulkan-surface',
+                # '--disable-vulkan-fallback-to-gl-for-testing',
+                # '--use-vulkan=disabled',
+                # '--disable-features=Vulkan'
 
-                # FORCE SOFTWARE RENDERING
-                '--use-gl=disabled',
-                '--disable-accelerated-2d-canvas',
-                '--disable-accelerated-video-decode',
-                '--disable-software-rasterizer',
-                '--disable-gpu-rasterization',
-                '--disable-gpu-memory-buffer-video-frames',
+                # # FORCE SOFTWARE RENDERING
+                # '--use-gl=disabled',
+                # '--disable-accelerated-2d-canvas',
+                # '--disable-accelerated-video-decode',
+                # '--disable-software-rasterizer',
+                # '--disable-gpu-rasterization',
+                # '--disable-gpu-memory-buffer-video-frames',
 
-                # DISABLE PROBLEMATIC FEATURES
-                '--disable-features=VizDisplayCompositor,Vulkan,UseSkiaRenderer,WebGL,WebGL2',
-                '--disable-3d-apis',
-                '--disable-webgl',
-                '--disable-webgl2',
+                # # DISABLE PROBLEMATIC FEATURES
+                # '--disable-features=VizDisplayCompositor,Vulkan,UseSkiaRenderer,WebGL,WebGL2',
+                # '--disable-3d-apis',
+                # '--disable-webgl',
+                # '--disable-webgl2',
 
-                # YOUR EXISTING FLAGS
-                '--disable-background-timer-throttling',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding',
-                '--disable-blink-features=AutomationControlled',
-                '--window-size=1920,1080'
+                # # YOUR EXISTING FLAGS
+                # '--disable-background-timer-throttling',
+                # '--disable-backgrounding-occluded-windows',
+                # '--disable-renderer-backgrounding',
+                # '--disable-blink-features=AutomationControlled',
+                # '--window-size=1920,1080'
 
-                # CONNECTION STABILITY
-                '--max_old_space_size=2048',
-                '--disable-extensions-http-throttling'
+                # # CONNECTION STABILITY
+                # '--max_old_space_size=2048',
+                # '--disable-extensions-http-throttling'
             ]
         }
 
@@ -91,15 +94,21 @@ class GologinHandler:
             chrome_options.add_experimental_option(
                 "debuggerAddress", debugger_address)
 
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--disable-software-rasterizer")
-            chrome_options.add_argument("--disable-3d-apis")
-            chrome_options.add_argument("--use-gl=swiftshader")
-            chrome_options.add_argument("--disable-features=Vulkan")
+            # chrome_options.add_argument("--disable-gpu")
+            # chrome_options.add_argument("--disable-software-rasterizer")
+            # chrome_options.add_argument("--disable-3d-apis")
+            # chrome_options.add_argument("--use-gl=swiftshader")
+            # chrome_options.add_argument("--disable-features=Vulkan")
 
             print('🌐 Connecting to browser...')
             self.driver = webdriver.Chrome(
                 service=service, options=chrome_options)
+            
+            # Wait for GoLogin profile to finish initializing
+            WebDriverWait(self.driver, 20).until(
+                EC.presence_of_element_located((By.TAG_NAME, "pre"))
+            )
+            print("✅ GoLogin session connected and ready")
 
         except Exception as e:
             traceback.print_exc()
