@@ -105,9 +105,8 @@ class GologinHandler:
                 service=service, options=chrome_options)
             
             # Wait for GoLogin profile to finish initializing
-            WebDriverWait(self.driver, 20).until(
-                EC.presence_of_element_located((By.TAG_NAME, "pre"))
-            )
+            time.sleep(8)
+
             print("✅ GoLogin session connected and ready")
 
         except Exception as e:
