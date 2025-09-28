@@ -187,13 +187,19 @@ class HumanTypingBehavior:
 
             # Paste directly if text is long and probability > 0.3
             if len(text) > 50 and random.random() > 0.3:
-                self.driver.execute_script("arguments[0].value = arguments[1];", target, text)
                 self.driver.execute_script("""
-                    const event = new Event('input', { bubbles: true });
-                    arguments[0].dispatchEvent(event);
-                """, target)
+                arguments[0].innerText = arguments[1];
+                const evt = new InputEvent("input", {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: "insertFromPaste",
+                    data: arguments[1]
+                });
+                arguments[0].dispatchEvent(evt);
+            """, target, text)
+
                 print(f"[PASTE MODE] Pasted full text ({len(text)} chars)")
-                time.sleep(random.uniform(0.2, 0.6))
+                time.sleep(random.uniform(0.3, 0.6))
                 return True
 
             # Otherwise, type character by character
@@ -217,12 +223,17 @@ class HumanTypingBehavior:
                     elif char.isascii():
                         target.send_keys(char)
                     else:
-                        # Handle emoji/special char by pasting typed_text + current char
-                        self.driver.execute_script("arguments[0].value = arguments[1];", target, typed_text + char)
+                        new_text = typed_text + char
                         self.driver.execute_script("""
-                            const event = new Event('input', { bubbles: true });
-                            arguments[0].dispatchEvent(event);
-                        """, target)
+                            arguments[0].innerText = arguments[1];
+                            const evt = new InputEvent("input", {
+                                bubbles: true,
+                                cancelable: true,
+                                inputType: "insertText",
+                                data: arguments[1]
+                            });
+                            arguments[0].dispatchEvent(evt);
+                        """, target, new_text)
 
                     typed_text += char
 
