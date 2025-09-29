@@ -73,13 +73,13 @@ def handle_two_factor_authentication(driver, secret_key:str, webhook:WebhookUtil
         )
 
         human_mouse.human_like_move_to_element(confirm_button,click=True)
-        time.sleep(2)
+        time.sleep(6)
         
         try:
             error_element = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.ID, "twoFactorErrorAlert"))
             )
-            if error_element:
+            if error_element and error_element.is_displayed():
                 webhook.update_account_status("wrong_login_data",{
                     "account_id":webhook.account_id,
                     "profile_id": webhook.profile_id,

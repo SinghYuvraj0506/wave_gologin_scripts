@@ -47,18 +47,20 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         password_input.send_keys(Keys.RETURN)
 
         # ⏳ wait briefly for potential error
-        time.sleep(3)
+        time.sleep(6)
         try:
             error_field = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, '[aria-describedby="slfErrorAlert"]'))
             )
             if error_field and error_field.is_displayed():
-                webhook.update_account_status("wrong_login_data",{
-                    "account_id":webhook.account_id,
-                    "profile_id": webhook.profile_id,
-                    "error_type":"CREDENTIALS"
-                })
-                raise RuntimeError("❌ Invalid credentials detected (field has aria-describedby=slfErrorAlert)")
+                msg = error_field.text.strip().lower()
+                if "password" in msg or "username" in msg or "credentials" in msg:
+                    webhook.update_account_status("wrong_login_data",{
+                        "account_id":webhook.account_id,
+                        "profile_id": webhook.profile_id,
+                        "error_type":"CREDENTIALS"
+                    })
+                    raise RuntimeError("❌ Invalid credentials detected (field has aria-describedby=slfErrorAlert)")
             
         except TimeoutException:
             # no error field → continue login
