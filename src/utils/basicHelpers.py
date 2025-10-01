@@ -36,17 +36,28 @@ def build_proxyconfig(session:str, country:str, city:str) -> dict:
 
 
 def get_ip_proxy(driver) -> str:
-    driver.get("https://ipinfo.io/json")
-    time.sleep(3)
+    try:
+        driver.get("https://ipinfo.io/json")
+        time.sleep(3)
 
-    # ipinfo.io/json returns raw JSON as the body
-    resp = driver.find_element(By.TAG_NAME, "body").text  
-    data = json.loads(resp)
+        # Try <pre> first, fallback to <body>
+        try:
+            resp = driver.find_element(By.TAG_NAME, "pre").text.strip()
+        except Exception:
+            resp = driver.find_element(By.TAG_NAME, "body").text.strip()
 
-    proxy_ip = data.get("ip")
-    print("🧠 Proxy Detected:", data)
-    return proxy_ip
+        if not resp:
+            raise ValueError("Empty response from ipinfo.io")
 
+        data = json.loads(resp)
+        proxy_ip = data.get("ip", "unknown")
+        print("🧠 Proxy Detected:", data)
+        return proxy_ip
+
+    except Exception as e:
+        print(f"⚠️ Failed to fetch proxy IP: {e}")
+        return "unknown"
+    
 
 def getTOTP(secret_key:str) -> str:
         """Generate a TOTP (One-Time Password) using the secret key"""
