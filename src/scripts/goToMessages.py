@@ -12,7 +12,11 @@ from utils.scrapping.ScreenObserver import ScreenObserver
 from utils.WebhookUtils import WebhookUtils
 from scripts.exploreReel import explore_reels_randomly
 from scripts.browseExplore import browse_explore_page
+import unicodedata
+import re
 
+MESSAGE_MAX_RETRIES = 2
+USER_MAX_RETRIES = 2
 
 def search_and_message_users(driver, messages_to_send, observer: ScreenObserver, webhook: WebhookUtils, delay_between_messages=(30, 50)):
     """
@@ -55,13 +59,13 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
             )
         except Exception as e:
             raise Exception("Page not clicked")
-        
-        
+
     print(f"🔍 Starting to search and message {len(messages_to_send)} users...")
     time.sleep(4)
 
     # 👇 Pick a random iteration for warmup , no warmuo befire the last iterations
-    warmup_index = random.randint(-(len(messages_to_send)*2) + 1, len(messages_to_send) - 2)
+    warmup_index = random.randint(-(len(messages_to_send)*2) +
+                                  1, len(messages_to_send) - 2)
 
     for i, message in enumerate(messages_to_send):
         print(
@@ -91,11 +95,11 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                     )
                 except Exception as e:
                     raise Exception("Page not clicked")
-                
+
             time.sleep(3)
 
         username = message['username']
-        message_text = message['message']
+        messages = message['messages']
         message_type = message['type']
 
         try:
@@ -104,7 +108,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 print(f"✅ User @{username} found!")
 
                 if message_type == "MESSAGE":
-                    if send_message_to_user(driver, username, message_text, human_mouse, human_typing, observer):
+                    if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer):
                         successful_messages.append(username)
                         successful_fresh_dms += 1
                         webhook.update_campaign_status("sent_dm", {
@@ -136,7 +140,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                         })
 
                     else:
-                        if send_message_to_user(driver, username, message_text, human_mouse, human_typing, observer):
+                        if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer):
                             successful_messages.append(username)
                             webhook.update_campaign_status("sent_dm", {
                                 "campaign_id": webhook.attributes.get("campaign_id", None),
@@ -193,7 +197,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     return successful_fresh_dms, successful_messages, failed_users
 
 
-def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_typing: HumanTypingBehavior, observer: ScreenObserver):
+def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_typing: HumanTypingBehavior, observer: ScreenObserver, retry_delay: float = 2.0):
     """
     Search for a specific username on Instagram.
 
@@ -206,67 +210,113 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
     Returns:
         bool: True if user found, False otherwise
     """
-    try:
-        observer.health_monitor.revive_driver("click_body")
-
-        # Click back if previous text exists
-        back_button = (By.CSS_SELECTOR, "svg[aria-label='Back']")
+    attempt = 0
+    while attempt < USER_MAX_RETRIES:
         try:
-            human_mouse.human_like_move_to_element(back_button, click=True)
-            time.sleep(1.5)
-        except Exception:
-            pass  # No back button = no problem
+            observer.health_monitor.revive_driver("click_body")
 
-        # Click search bar
-        observer.health_monitor.revive_driver("scroll")
-
-        search_input = (By.CSS_SELECTOR, "input[placeholder*='Search']")
-        human_mouse.human_like_move_to_element(search_input, click=True)
-        time.sleep(2)
-
-        elem = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable(search_input))
-        human_typing.human_like_type(
-            search_input, text=username, clear_field=True)
-
-        time.sleep(4)
-
-        try:
-           # Wait for search results to appear and find the exact user
-            observer.health_monitor.revive_driver("screenshot")
-
-            user_result = (By.XPATH, f"//span[text()='{username}']")
-            human_mouse.human_like_move_to_element(user_result, click=True)
-            time.sleep(1)
-            observer.health_monitor.revive_driver("refresh")
+            # Click back if previous text exists
+            back_button = (By.CSS_SELECTOR, "svg[aria-label='Back']")
             try:
-                observer.health_monitor.revive_driver("click_body")
-                WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located(
-                        (By.XPATH, f"//span[contains(text(),'{username} · Instagram')]"))
-                )
-                return True
-            except TimeoutException:
+                human_mouse.human_like_move_to_element(back_button, click=True)
+                time.sleep(1.5)
+            except Exception:
+                pass
+
+            # Click search bar
+            observer.health_monitor.revive_driver("scroll")
+
+            search_input = (By.CSS_SELECTOR, "input[placeholder*='Search']")
+            human_mouse.human_like_move_to_element(search_input, click=True)
+            time.sleep(1.5)
+
+            elem = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable(search_input))
+            human_typing.human_like_type(
+                search_input, text=username, clear_field=True)
+
+            time.sleep(2.5)
+
+            try:
+            # Wait for search results to appear and find the exact user
+                observer.health_monitor.revive_driver("screenshot")
+                user_result = (By.XPATH, f"//span[text()='{username}']")
+                human_mouse.human_like_move_to_element(user_result, click=True)
+                time.sleep(2)
+                observer.health_monitor.revive_driver("refresh")
                 try:
-                    observer.health_monitor.revive_driver("screenshot")
+                    observer.health_monitor.revive_driver("click_body")
                     WebDriverWait(driver, 5).until(
                         EC.presence_of_element_located(
-                            (By.XPATH, f"//a[@href='/{username}/' and @role='link']"))
+                            (By.XPATH, f"//span[contains(text(),'{username} · Instagram')]"))
                     )
                     return True
                 except TimeoutException:
-                    return False
+                    try:
+                        observer.health_monitor.revive_driver("screenshot")
+                        WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located(
+                                (By.XPATH, f"//a[@href='/{username}/' and @role='link']"))
+                        )
+                        return True
+                    except TimeoutException:
+                        pass
 
-        except TimeoutException:
-            print(f"⚠️ No exact match found for @{username}")
+            except TimeoutException:
+                print(f"⚠️ Attempt {attempt+1}: No exact match found for @{username}")
+
+        except Exception as e:
+            print(f"❌ Attempt {attempt+1}: Error searching for @{username}: {str(e)}")
+
+        # Retry delay before next attempt
+        attempt += 1
+        time.sleep(retry_delay)
+    
+    print(f"❌ Failed to find user @{username} after {USER_MAX_RETRIES} attempts")
+    return False
+
+
+def normalize_text(s: str) -> str:
+    """Normalize text for comparison (handles emojis, whitespace, unicode)."""
+    if not s:
+        return ""
+    # Normalize Unicode (NFKC makes emojis and symbols consistent)
+    s = unicodedata.normalize("NFKC", s)
+    # Collapse multiple spaces/newlines into single space
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+
+def is_message_sent(driver, expected_text: str) -> bool:
+    try:
+        chat_elems = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, 'div[data-virtualized="false"]')
+            )
+        )
+
+        if not chat_elems:
+            print(f"⚠️ No chat elements found")
+            return False
+
+        last_elem = chat_elems[-1]
+        last_msg = normalize_text(last_elem.text)
+        expected_msg = normalize_text(expected_text)
+
+        # Exact match OR last message starts with expected (for emojis/trailing chars)
+        if last_msg == expected_msg or last_msg.startswith(expected_msg):
+            return True
+        else:
+            print(
+                f"❌ Last message mismatch.\nExpected: {expected_msg}\nFound: {last_msg}")
             return False
 
     except Exception as e:
-        print(f"❌ Error searching for @{username}: {str(e)}")
+        print(f"⚠️ Could not verify message: {e}")
         return False
 
 
-def send_message_to_user(driver, username, message_text, human_mouse: HumanMouseBehavior,  human_typing: HumanTypingBehavior, observer: ScreenObserver):
+def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBehavior,  human_typing: HumanTypingBehavior, observer: ScreenObserver):
     """
     Send a message to a user from their profile page.
 
@@ -281,44 +331,73 @@ def send_message_to_user(driver, username, message_text, human_mouse: HumanMouse
         bool: True if message sent successfully, False otherwise
     """
     try:
-        # Find message input field
-        message_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "div[role='textbox']"))
-        )
-        human_mouse.human_like_move_to_element(message_input, click=True)
-        human_typing.human_like_type(message_input, message_text)
+        for message_text in messages:
+            retries = 0
+            sent = False
 
-        time.sleep(3)
-        observer.health_monitor.revive_driver("screenshot")
-        message_input.send_keys(Keys.RETURN)
+            while retries <= MESSAGE_MAX_RETRIES and not sent:
+                try:
+                    # Focus input
+                    message_input = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located(
+                            (By.CSS_SELECTOR, "div[role='textbox']"))
+                    )
+                    human_mouse.human_like_move_to_element(
+                        message_input, click=True)
+                    human_typing.human_like_type(message_input, message_text)
 
-        # Wait a moment for the sending indicator to appear/disappear
-        try:
-            # If the sending icon appears, wait for it to disappear
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "svg[aria-label='IGD message sending status icon']")
-                )
-            )
-            print("⏳ Sending indicator detected, waiting for completion...")
+                    time.sleep(1.5)
+                    observer.health_monitor.revive_driver("screenshot")
+                    message_input.send_keys(Keys.RETURN)
 
+                    # Wait for sending indicator
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located(
+                                (By.CSS_SELECTOR,
+                                 "svg[aria-label='IGD message sending status icon']")
+                            )
+                        )
+                        print(
+                            "⏳ Sending indicator detected, waiting for completion...")
 
-            WebDriverWait(driver, 10).until_not(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "svg[aria-label='IGD message sending status icon']")
-                )
-            )
-            print("✅ Message sent successfully.")
-            return True
+                        WebDriverWait(driver, 10).until_not(
+                            EC.presence_of_element_located(
+                                (By.CSS_SELECTOR,
+                                 "svg[aria-label='IGD message sending status icon']")
+                            )
+                        )
+                        print(f"✅ Message sent to @{username}: {message_text}")
+                        sent = True
 
-        except TimeoutException:
-            # If the icon never appeared, assume message sent instantly
-            print("✅ Message sent (no sending indicator).")
-            return True
+                    except TimeoutException:
+                        print("⚠️ No sending indicator, checking chat...")
+                        if is_message_sent(driver, message_text):
+                            print(
+                                f"✅ Message confirmed in chat to @{username}: {message_text}")
+                            sent = True
+                        else:
+                            retries += 1
+                            if retries <= MESSAGE_MAX_RETRIES:
+                                print(
+                                    f"🔄 Retrying DM to @{username} after refresh... (Attempt {retries})")
+                                observer.health_monitor.revive_driver(
+                                    "refresh")
+                                time.sleep(5)
+                            else:
+                                print(
+                                    f"❌ Failed to send message after {MESSAGE_MAX_RETRIES} retries.")
+                                return False
+
+                except Exception as inner_e:
+                    print(
+                        f"❌ Error sending message '{message_text}' to @{username}: {inner_e}")
+                    return False
+
+        return True
 
     except Exception as e:
-        print(f"❌ Error sending message to @{username}: {str(e)}")
+        print(f"❌ Fatal error while sending messages to @{username}: {e}")
         return False
 
 
