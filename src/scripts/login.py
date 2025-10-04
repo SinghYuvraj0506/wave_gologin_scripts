@@ -47,7 +47,7 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         password_input.send_keys(Keys.RETURN)
 
         # ⏳ wait briefly for potential error
-        time.sleep(6)
+        time.sleep(8)
         try:
             error_field = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, '[aria-describedby="slfErrorAlert"]'))

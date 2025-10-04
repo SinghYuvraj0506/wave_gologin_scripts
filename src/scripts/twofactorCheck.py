@@ -73,7 +73,7 @@ def handle_two_factor_authentication(driver, secret_key:str, webhook:WebhookUtil
         )
 
         human_mouse.human_like_move_to_element(confirm_button,click=True)
-        time.sleep(6)
+        time.sleep(8)
         
         try:
             error_element = WebDriverWait(driver, 5).until(
