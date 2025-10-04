@@ -155,6 +155,8 @@ class HumanTypingBehavior:
         # Increase probability after punctuation
         return random.random() < base_prob
     
+    def contains_non_ascii(text):
+        return any(ord(c) > 127 for c in text)
 
     def human_like_type(self, element, text, clear_field=True, typing_speed='normal'):
         """
@@ -177,7 +179,6 @@ class HumanTypingBehavior:
 
             wait = WebDriverWait(self.driver, 10)
             target = wait.until(EC.element_to_be_clickable(element))
-
             target.click()
             time.sleep(random.uniform(0.1, 0.3))
 
@@ -185,30 +186,28 @@ class HumanTypingBehavior:
                 target.clear()
                 time.sleep(random.uniform(0.05, 0.15))
 
-            # Paste directly if text is long and probability > 0.3
-            if len(text) > 50 and random.random() > 0.3:
-                self.driver.execute_script("""
-                arguments[0].innerText = arguments[1];
-                const evt = new InputEvent("input", {
-                    bubbles: true,
-                    cancelable: true,
-                    inputType: "insertFromPaste",
-                    data: arguments[1]
-                });
-                arguments[0].dispatchEvent(evt);
-            """, target, text)
-
-                print(f"[PASTE MODE] Pasted full text ({len(text)} chars)")
-                time.sleep(random.uniform(0.3, 0.6))
-                return True
-
-            # Otherwise, type character by character
-            speed_multipliers = {
-                'slow': 1.5,
-                'normal': 1.0,
-                'fast': 0.6
-            }
+            speed_multipliers = {'slow': 1.5, 'normal': 1.0, 'fast': 0.6}
             speed_multiplier = speed_multipliers.get(typing_speed, 1.0)
+
+            # Decide if we paste all text at once
+            paste_whole = len(text) > 50 and random.random() > 0.3
+            if paste_whole or self.contains_non_ascii(text):
+                self.driver.execute_script("""
+                    const el = arguments[0];
+                    const val = arguments[1];
+                    el.focus();
+                    if (document.execCommand) {
+                        document.execCommand('selectAll', false, null);
+                        document.execCommand('insertText', false, val);
+                    } else {
+                        el.innerText = val;
+                        const evt = new InputEvent('input', {bubbles:true, cancelable:true, inputType:'insertFromPaste', data: val});
+                        el.dispatchEvent(evt);
+                    }
+                """, target, text)
+                time.sleep(random.uniform(0.3, 0.6))
+                print(f"[PASTE MODE] Pasted full text ({len(text)} chars)")
+                return True
 
             typed_text = ""
             i = 0
@@ -223,24 +222,25 @@ class HumanTypingBehavior:
                     elif char.isascii():
                         target.send_keys(char)
                     else:
-                        new_text = typed_text + char
+                        # Emoji / unicode: insert safely
                         self.driver.execute_script("""
-                            arguments[0].innerText = arguments[1];
-                            const evt = new InputEvent("input", {
-                                bubbles: true,
-                                cancelable: true,
-                                inputType: "insertText",
-                                data: arguments[1]
-                            });
-                            arguments[0].dispatchEvent(evt);
-                        """, target, new_text)
+                            const el = arguments[0];
+                            const ch = arguments[1];
+                            el.focus();
+                            if (document.execCommand) {
+                                document.execCommand('selectAll', false, null);
+                                document.execCommand('insertText', false, ch);
+                            } else {
+                                el.innerText += ch;
+                                const evt = new InputEvent('input', {bubbles:true, cancelable:true, inputType:'insertText', data: ch});
+                                el.dispatchEvent(evt);
+                            }
+                        """, target, char)
 
                     typed_text += char
-
                     typing_delay = self.get_typing_speed(char, previous_char) * speed_multiplier
                     typing_delay += random.uniform(-0.02, 0.02)
                     typing_delay = max(0.01, typing_delay)
-
                     time.sleep(typing_delay)
 
                     if len(text) > 6 and self.should_pause(i, len(text)):
@@ -265,11 +265,9 @@ class HumanTypingBehavior:
             print(f"Unexpected error while typing: {e}")
             return False
 
-
     def decode_text(self, text: str) -> str:
         """Decode text with surrogate pairs (\\ud83d\\ude0a) into proper Unicode + emojis."""
         try:
-            # return json.loads(f'"{text}"')
             return text.encode("utf-16", "surrogatepass").decode("utf-16")
         except Exception:
             return text
