@@ -44,6 +44,25 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         human_typing.human_like_type(password_input, text=password, typing_speed="slow")
 
         time.sleep(3)
+        
+        # ✅ Check if the "Log in" button is disabled before proceeding
+        try:
+            login_button = wait.until(EC.presence_of_element_located(
+                (By.XPATH, "//button[contains(., 'Log in') or @type='submit']")
+            ))
+            is_disabled = login_button.get_attribute("disabled")
+
+            if is_disabled:
+                webhook.update_account_status("wrong_login_data", {
+                    "account_id": webhook.account_id,
+                    "profile_id": webhook.profile_id,
+                    "error_type": "CREDENTIALS"
+                })
+                raise RuntimeError("❌ Login button is disabled — invalid credentials or incomplete form")
+
+        except TimeoutException:
+            print("⚠️ Login button not found (skipping disabled check)")
+
         password_input.send_keys(Keys.RETURN)
 
         # ⏳ wait briefly for potential error
@@ -54,7 +73,7 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
             )
             if error_field and error_field.is_displayed():
                 msg = error_field.text.strip().lower()
-                if "password" in msg or "username" in msg or "credentials" in msg:
+                if "password" in msg or "incorrect" in msg or "username" in msg or "credentials" in msg:
                     webhook.update_account_status("wrong_login_data",{
                         "account_id":webhook.account_id,
                         "profile_id": webhook.profile_id,
