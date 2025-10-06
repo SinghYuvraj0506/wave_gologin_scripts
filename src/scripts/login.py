@@ -77,41 +77,35 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         time.sleep(8)
         keywords = ["incorrect", "sorry", "double-check", "credentials"]
 
-        # build xpath that finds any element whose string() contains any keyword (case-insensitive)
+        # Only look inside <span> tags that might show login errors
         xpath_cond = " or ".join(
-            f"contains(translate(string(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{kw}')"
+            f"contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{kw}')"
             for kw in keywords
         )
-        error_xpath = f"//*[{xpath_cond}]"
+        error_xpath = f"//span[{xpath_cond}]"
 
         try:
-            # Wait up to 5s for any element that contains one of the keywords
+            # Wait up to 5s for any matching <span> with those words
             error_elem = WebDriverWait(driver, 5).until(
                 EC.visibility_of_element_located((By.XPATH, error_xpath))
             )
 
-            # small debounce to avoid catching transient toasts
-            time.sleep(0.5)
+            time.sleep(0.3)  # debounce in case of transient UI
+            text = error_elem.text.strip().lower()
+            print(f"⚠️ Found potential login error text: {text}")
 
-            # re-check visibility & text content
-            if error_elem.is_displayed():
-                text = error_elem.text.strip()
-                text_l = text.lower()
-                print(f"⚠️ Found potential login error text: {text}")
+            if any(k in text for k in keywords):
+                webhook.update_account_status("wrong_login_data", {
+                    "account_id": webhook.account_id,
+                    "profile_id": webhook.profile_id,
+                    "error_type": "CREDENTIALS"
+                })
+                raise RuntimeError(f"❌ Invalid credentials detected: {text}")
+            else:
+                print("ℹ️ Found span, but message not credential-related — continuing login flow.")
 
-                # only treat as credentials error if text actually contains credential-related words
-                if any(k in text_l for k in keywords):
-                    webhook.update_account_status("wrong_login_data", {
-                        "account_id": webhook.account_id,
-                        "profile_id": webhook.profile_id,
-                        "error_type": "CREDENTIALS"
-                    })
-                    raise RuntimeError(f"❌ Invalid credentials detected: {text}")
-                else:
-                    # found element but text doesn't indicate credential error — continue
-                    print("ℹ️ Found message but it's not a credentials error, continuing login flow.")
         except TimeoutException:
-            # no error element found — continue normal flow
+            # No visible span with these words — normal flow
             pass
 
         # Handle 2FA if required
