@@ -11,7 +11,7 @@ from utils.scrapping.ScreenObserver import ScreenObserver
 from utils.WebhookUtils import WebhookUtils
 
 
-def insta_login(driver, username: str, password: str, secret_key: str, observer: ScreenObserver, webhook:WebhookUtils):
+def insta_login(driver, username: str, password: str, secret_key: str, observer: ScreenObserver, webhook: WebhookUtils):
     """
     Logs into Instagram using the provided Selenium driver.
 
@@ -32,19 +32,26 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         observer.health_monitor.revive_driver("click_body")
         human_mouse.random_mouse_jitter(4)
 
-        username_input = wait.until(EC.presence_of_element_located((By.NAME, "username")))
-        password_input = wait.until(EC.presence_of_element_located((By.NAME, "password")))
+        # to see the allow cookies dialog -------------------
+        time.sleep(10)
+
+        username_input = wait.until(
+            EC.presence_of_element_located((By.NAME, "username")))
+        password_input = wait.until(
+            EC.presence_of_element_located((By.NAME, "password")))
 
         human_mouse.human_like_move_to_element(username_input, click=True)
-        human_typing.human_like_type(username_input, text=username, typing_speed="normal")
+        human_typing.human_like_type(
+            username_input, text=username, typing_speed="normal")
 
         time.sleep(2)
 
         human_mouse.human_like_move_to_element(password_input, click=True)
-        human_typing.human_like_type(password_input, text=password, typing_speed="slow")
+        human_typing.human_like_type(
+            password_input, text=password, typing_speed="slow")
 
         time.sleep(3)
-        
+
         # ✅ Check if the "Log in" button is disabled before proceeding
         try:
             login_button = wait.until(EC.presence_of_element_located(
@@ -58,29 +65,34 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
                     "profile_id": webhook.profile_id,
                     "error_type": "CREDENTIALS"
                 })
-                raise RuntimeError("❌ Login button is disabled — invalid credentials or incomplete form")
+                raise RuntimeError(
+                    "❌ Login button is disabled — invalid credentials or incomplete form")
 
         except TimeoutException:
             print("⚠️ Login button not found (skipping disabled check)")
 
-        password_input.send_keys(Keys.RETURN)
+        # go to click login  ---------
+        human_mouse.human_like_move_to_element(element=(
+            By.XPATH, "//button[contains(., 'Log in') or @type='submit']"), click=True)
 
         # ⏳ wait briefly for potential error
         time.sleep(8)
         try:
             error_field = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, '[aria-describedby="slfErrorAlert"]'))
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, '[aria-describedby="slfErrorAlert"]'))
             )
             if error_field and error_field.is_displayed():
                 msg = error_field.text.strip().lower()
                 if "password" in msg or "incorrect" in msg or "username" in msg or "credentials" in msg:
-                    webhook.update_account_status("wrong_login_data",{
-                        "account_id":webhook.account_id,
+                    webhook.update_account_status("wrong_login_data", {
+                        "account_id": webhook.account_id,
                         "profile_id": webhook.profile_id,
-                        "error_type":"CREDENTIALS"
+                        "error_type": "CREDENTIALS"
                     })
-                    raise RuntimeError("❌ Invalid credentials detected (field has aria-describedby=slfErrorAlert)")
-            
+                    raise RuntimeError(
+                        "❌ Invalid credentials detected (field has aria-describedby=slfErrorAlert)")
+
         except TimeoutException:
             # no error field → continue login
             pass
@@ -101,7 +113,7 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         print("❌ Error during login: Could not find a required element.")
         print(f"Details: {e}")
         return False
-    
+
     except RuntimeError:
         raise
 
