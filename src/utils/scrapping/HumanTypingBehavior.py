@@ -155,8 +155,10 @@ class HumanTypingBehavior:
         # Increase probability after punctuation
         return random.random() < base_prob
     
-    def contains_non_ascii(text):
+
+    def contains_non_ascii(self, text):
         return any(ord(c) > 127 for c in text)
+
 
     def human_like_type(self, element, text, clear_field=True, typing_speed='normal'):
         """
