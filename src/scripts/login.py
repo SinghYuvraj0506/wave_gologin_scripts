@@ -71,30 +71,47 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         except TimeoutException:
             print("⚠️ Login button not found (skipping disabled check)")
 
-        # go to click login  ---------
-        human_mouse.human_like_move_to_element(element=(
-            By.XPATH, "//button[contains(., 'Log in') or @type='submit']"), click=True)
+        password_input.send_keys(Keys.RETURN)
 
         # ⏳ wait briefly for potential error
         time.sleep(8)
+        keywords = ["incorrect", "sorry", "double-check", "credentials"]
+
+        # build xpath that finds any element whose string() contains any keyword (case-insensitive)
+        xpath_cond = " or ".join(
+            f"contains(translate(string(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{kw}')"
+            for kw in keywords
+        )
+        error_xpath = f"//*[{xpath_cond}]"
+
         try:
-            error_field = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, '[aria-describedby="slfErrorAlert"]'))
+            # Wait up to 5s for any element that contains one of the keywords
+            error_elem = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.XPATH, error_xpath))
             )
-            if error_field and error_field.is_displayed():
-                msg = error_field.text.strip().lower()
-                if "password" in msg or "incorrect" in msg or "username" in msg or "credentials" in msg:
+
+            # small debounce to avoid catching transient toasts
+            time.sleep(0.5)
+
+            # re-check visibility & text content
+            if error_elem.is_displayed():
+                text = error_elem.text.strip()
+                text_l = text.lower()
+                print(f"⚠️ Found potential login error text: {text}")
+
+                # only treat as credentials error if text actually contains credential-related words
+                if any(k in text_l for k in keywords):
                     webhook.update_account_status("wrong_login_data", {
                         "account_id": webhook.account_id,
                         "profile_id": webhook.profile_id,
                         "error_type": "CREDENTIALS"
                     })
-                    raise RuntimeError(
-                        "❌ Invalid credentials detected (field has aria-describedby=slfErrorAlert)")
-
+                    raise RuntimeError(f"❌ Invalid credentials detected: {text}")
+                else:
+                    # found element but text doesn't indicate credential error — continue
+                    print("ℹ️ Found message but it's not a credentials error, continuing login flow.")
         except TimeoutException:
-            # no error field → continue login
+            # no error element found — continue normal flow
             pass
 
         # Handle 2FA if required
