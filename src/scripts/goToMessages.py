@@ -240,7 +240,7 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
             try:
             # Wait for search results to appear and find the exact user
                 observer.health_monitor.revive_driver("screenshot")
-                user_result = (By.XPATH, f"//span[text()='{username}']")
+                user_result = (By.XPATH, f"//h2[normalize-space(text())='More accounts']/following::span[text()='{username}']")
                 human_mouse.human_like_move_to_element(user_result, click=True)
                 time.sleep(2)
                 observer.health_monitor.revive_driver("refresh")
