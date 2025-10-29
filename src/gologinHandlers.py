@@ -11,6 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
+
 class BaseGologinError(Exception):
     """Base exception for gologin related error"""
 
@@ -21,7 +22,7 @@ class BaseGologinError(Exception):
 
 
 class GologinHandler:
-    def __init__(self, proxy_country:str, proxy_city:str, session_id:str,account_id:str, profile_id: str = None):
+    def __init__(self, proxy_country: str, proxy_city: str, proxy_city_fallbacks: list[str], session_id: str, account_id: str, profile_id: str = None):
         token = Config.GL_API_TOKEN
         if not token:
             raise BaseGologinError("Gologin Token not found")
@@ -34,38 +35,6 @@ class GologinHandler:
                 "--disable-dev-shm-usage",
                 "--disable-blink-features=AutomationControlled",
                 "--window-size=1920,1080",
-
-                # # VULKAN-SPECIFIC FIXES
-                # '--disable-vulkan',
-                # '--disable-vulkan-surface',
-                # '--disable-vulkan-fallback-to-gl-for-testing',
-                # '--use-vulkan=disabled',
-                # '--disable-features=Vulkan'
-
-                # # FORCE SOFTWARE RENDERING
-                # '--use-gl=disabled',
-                # '--disable-accelerated-2d-canvas',
-                # '--disable-accelerated-video-decode',
-                # '--disable-software-rasterizer',
-                # '--disable-gpu-rasterization',
-                # '--disable-gpu-memory-buffer-video-frames',
-
-                # # DISABLE PROBLEMATIC FEATURES
-                # '--disable-features=VizDisplayCompositor,Vulkan,UseSkiaRenderer,WebGL,WebGL2',
-                # '--disable-3d-apis',
-                # '--disable-webgl',
-                # '--disable-webgl2',
-
-                # # YOUR EXISTING FLAGS
-                # '--disable-background-timer-throttling',
-                # '--disable-backgrounding-occluded-windows',
-                # '--disable-renderer-backgrounding',
-                # '--disable-blink-features=AutomationControlled',
-                # '--window-size=1920,1080'
-
-                # # CONNECTION STABILITY
-                # '--max_old_space_size=2048',
-                # '--disable-extensions-http-throttling'
             ]
         }
 
@@ -78,9 +47,28 @@ class GologinHandler:
             self.create_gologin_profile()
 
         self.gologin.setProfileId(self.profile_id)
-        proxyConfig = build_proxyconfig(session=session_id, city=proxy_city, country=proxy_country)
-        self.change_gologin_proxy(proxyConfig)
-        
+        proxy_success = False
+        try:
+            proxyConfig = build_proxyconfig(
+                session=session_id, city=proxy_city, country=proxy_country)
+            self.change_gologin_proxy(proxyConfig)
+            proxy_success = True
+        except Exception as e:
+            if proxy_city_fallbacks is not None:
+                for i in proxy_city_fallbacks:
+                    try:
+                        proxyConfig = build_proxyconfig(
+                            session=session_id, city=i, country=proxy_country)
+                        self.change_gologin_proxy(proxyConfig)
+                        proxy_success = True
+                        break
+                    except Exception as e:
+                        pass
+
+        if not proxy_success:
+            raise BaseGologinError(
+                f"Failed to set proxy for {proxy_country}, tried main '{proxy_city}' and fallbacks {proxy_city_fallbacks}"
+            )
 
     def connect_gologin_session(self):
         try:
@@ -94,16 +82,10 @@ class GologinHandler:
             chrome_options.add_experimental_option(
                 "debuggerAddress", debugger_address)
 
-            # chrome_options.add_argument("--disable-gpu")
-            # chrome_options.add_argument("--disable-software-rasterizer")
-            # chrome_options.add_argument("--disable-3d-apis")
-            # chrome_options.add_argument("--use-gl=swiftshader")
-            # chrome_options.add_argument("--disable-features=Vulkan")
-
             print('🌐 Connecting to browser...')
             self.driver = webdriver.Chrome(
                 service=service, options=chrome_options)
-            
+
             # Wait for GoLogin profile to finish initializing
             time.sleep(8)
 
@@ -112,7 +94,6 @@ class GologinHandler:
         except Exception as e:
             traceback.print_exc()
             raise BaseGologinError("Gologin Connection Error", e)
-        
 
     def stop_gologin_session(self):
         try:
@@ -120,7 +101,6 @@ class GologinHandler:
             print('✅ GoLogin session stopped successfully')
         except Exception as e:
             raise BaseGologinError("GologinStop Connection Error", e)
-
 
     def create_gologin_profile(self):
         try:
@@ -160,14 +140,10 @@ class GologinHandler:
         except Exception as e:
             print(e)
             raise BaseGologinError("GologinProfileCreation Error", e)
-        
 
     def change_gologin_proxy(self, proxyConfig):
-        try:
-            self.gologin.changeProfileProxy(self.profile_id, proxyConfig)
-            print('✅ GoLogin proxy Alloted successfully')
-        except Exception as e:
-            raise BaseGologinError("GologinProxyAllot Error", e)
+        self.gologin.changeProfileProxy(self.profile_id, proxyConfig)
+        print('✅ GoLogin proxy Alloted successfully')
 
     def download_cookies(self):
         cookies = self.gologin.downloadCookies()

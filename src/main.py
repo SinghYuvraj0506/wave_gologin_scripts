@@ -15,16 +15,16 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import json
 import sys
-import random
 
 
 class MainExecutor:
-    def __init__(self, proxy_country: str, proxy_city: str, session_id: str, task_type: str, webhook: WebhookUtils, profile_id: str = None):
-        self.profile_id = profile_id
-        self.proxy_country = proxy_country
-        self.proxy_city = proxy_city
-        self.session_id = session_id
-        self.task_type = task_type
+    def __init__(self, webhook: WebhookUtils):
+        self.profile_id = webhook.profile_id
+        self.proxy_country = webhook.proxy_country
+        self.proxy_city = webhook.proxy_city
+        self.proxy_city_fallbacks = webhook.proxy_city_fallbacks
+        self.session_id = webhook.proxy_session_id
+        self.task_type = webhook.task_type
         self.logged_in = False
         self.gologin = None
         self.observer = None
@@ -61,6 +61,7 @@ class MainExecutor:
                 profile_id=self.profile_id,
                 proxy_country=self.proxy_country,
                 proxy_city=self.proxy_city,
+                proxy_city_fallbacks=self.proxy_city_fallbacks,
                 session_id=self.session_id,
                 account_id=self.webhook.account_id
             )
