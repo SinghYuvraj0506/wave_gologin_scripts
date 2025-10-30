@@ -46,7 +46,12 @@ class GologinHandler:
         if profile_id is None:
             self.create_gologin_profile()
 
-        self.gologin.setProfileId(self.profile_id)
+        try:
+            self.gologin.setProfileId(self.profile_id)
+        except Exception as e:
+            self.create_gologin_profile()
+            self.gologin.setProfileId(self.profile_id)
+
         proxy_success = False
         try:
             proxyConfig = build_proxyconfig(
