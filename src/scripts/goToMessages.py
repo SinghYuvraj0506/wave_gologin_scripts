@@ -347,7 +347,7 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
                         human_typing.human_like_type(message_input, message_text)
                     except StaleElementReferenceException:
                         print("♻️ Message input went stale, refreshing and retrying...")
-                        observer.health_monitor.revive_driver("reresh")
+                        observer.health_monitor.revive_driver("refresh")
                         time.sleep(2)
 
                         message_input = WebDriverWait(driver, 10).until(
