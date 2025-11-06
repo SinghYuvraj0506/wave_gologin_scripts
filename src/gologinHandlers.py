@@ -46,6 +46,7 @@ class GologinHandler:
         if profile_id is None:
             self.create_gologin_profile()
 
+        # check for gologin retry
         try:
             self.gologin.setProfileId(self.profile_id)
         except Exception as e:

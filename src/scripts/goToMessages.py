@@ -1,7 +1,7 @@
 import time
 import random
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from utils.scrapping.HumanMouseBehavior import HumanMouseBehavior
@@ -342,9 +342,19 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
                         EC.presence_of_element_located(
                             (By.CSS_SELECTOR, "div[role='textbox']"))
                     )
-                    human_mouse.human_like_move_to_element(
-                        message_input, click=True)
-                    human_typing.human_like_type(message_input, message_text)
+                    try:
+                        human_mouse.human_like_move_to_element(message_input, click=True)
+                        human_typing.human_like_type(message_input, message_text)
+                    except StaleElementReferenceException:
+                        print("♻️ Message input went stale, refreshing and retrying...")
+                        observer.health_monitor.revive_driver("reresh")
+                        time.sleep(2)
+
+                        message_input = WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='textbox']"))
+                        )
+                        human_mouse.human_like_move_to_element(message_input, click=True)
+                        human_typing.human_like_type(message_input, message_text)
 
                     time.sleep(1.5)
                     observer.health_monitor.revive_driver("screenshot")

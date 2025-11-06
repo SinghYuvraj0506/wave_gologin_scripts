@@ -76188,7 +76188,7 @@ const count = {
 
 data.forEach((e) => {
   if (e.city_name) {
-    // console.log("City: ", e.city_name);
+    console.log("City: ", e.city_name);
     // console.log("Business: ", e.is_business);
     count.city++;
   }
