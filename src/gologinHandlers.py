@@ -35,6 +35,39 @@ class GologinHandler:
                 "--disable-dev-shm-usage",
                 "--disable-blink-features=AutomationControlled",
                 "--window-size=1920,1080",
+                "--disable-gpu"
+
+                # # VULKAN-SPECIFIC FIXES
+                '--disable-vulkan',
+                '--disable-vulkan-surface',
+                '--disable-vulkan-fallback-to-gl-for-testing',
+                '--use-vulkan=disabled',
+                '--disable-features=Vulkan'
+
+                # FORCE SOFTWARE RENDERING
+                '--use-gl=disabled',
+                '--disable-accelerated-2d-canvas',
+                '--disable-accelerated-video-decode',
+                '--disable-software-rasterizer',
+                '--disable-gpu-rasterization',
+                '--disable-gpu-memory-buffer-video-frames',
+
+                # DISABLE PROBLEMATIC FEATURES
+                '--disable-features=VizDisplayCompositor,Vulkan,UseSkiaRenderer,WebGL,WebGL2',
+                '--disable-3d-apis',
+                '--disable-webgl',
+                '--disable-webgl2',
+
+                # YOUR EXISTING FLAGS
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-blink-features=AutomationControlled',
+                '--window-size=1920,1080'
+
+                # CONNECTION STABILITY
+                '--max_old_space_size=2048',
+                '--disable-extensions-http-throttling'
             ]
         }
 

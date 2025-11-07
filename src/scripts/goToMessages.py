@@ -343,18 +343,25 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
                             (By.CSS_SELECTOR, "div[role='textbox']"))
                     )
                     try:
-                        human_mouse.human_like_move_to_element(message_input, click=True)
-                        human_typing.human_like_type(message_input, message_text)
+                        val1 = human_mouse.human_like_move_to_element(message_input, click=True)
+                        val2 = human_typing.human_like_type(message_input, message_text)
+
+                        if not (val1 and val2):
+                            raise Exception("Failed to interact with message input")
+                        
                     except Exception as e:
                         print("♻️ Message input went stale, refreshing and retrying...")
                         observer.health_monitor.revive_driver("refresh")
-                        time.sleep(2)
+                        time.sleep(3)
 
                         message_input = WebDriverWait(driver, 10).until(
                             EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='textbox']"))
                         )
-                        human_mouse.human_like_move_to_element(message_input, click=True)
-                        human_typing.human_like_type(message_input, message_text)
+                        val1 = human_mouse.human_like_move_to_element(message_input, click=True)
+                        val2 = human_typing.human_like_type(message_input, message_text)
+
+                        if not (val1 and val2):
+                            raise Exception("Failed to interact with message input")
 
                     time.sleep(1.5)
                     observer.health_monitor.revive_driver("screenshot")
