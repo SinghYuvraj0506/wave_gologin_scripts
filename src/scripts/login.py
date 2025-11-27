@@ -35,10 +35,34 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         # to see the allow cookies dialog -------------------
         time.sleep(10)
 
+        try:
+            login_form_old = driver.find_elements(By.CSS_SELECTOR, "form#loginForm")
+            login_form_new = driver.find_elements(By.CSS_SELECTOR, "form#login_form")
+
+            if login_form_new:
+                print("🔄 New login page detected!")
+
+                username_selector = (By.NAME, "email")
+                password_selector = (By.NAME, "pass")
+                login_button_xpath = "//div[@role='button' and contains(., 'Log in')]"
+
+            else:
+                print("🟦 Classic Instagram login page detected")
+
+                username_selector = (By.NAME, "username")
+                password_selector = (By.NAME, "password")
+                login_button_xpath = "//button[contains(., 'Log in')]"
+
+        except Exception as e:
+            print("❌ Failed detecting login form:", e)
+            return False
+
         username_input = wait.until(
-            EC.presence_of_element_located((By.NAME, "username")))
+            EC.presence_of_element_located(username_selector)
+        )
         password_input = wait.until(
-            EC.presence_of_element_located((By.NAME, "password")))
+            EC.presence_of_element_located(password_selector)
+        )
 
         human_mouse.human_like_move_to_element(username_input, click=True)
         human_typing.human_like_type(
@@ -54,10 +78,14 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
 
         # ✅ Check if the "Log in" button is disabled before proceeding
         try:
-            login_button = wait.until(EC.presence_of_element_located(
-                (By.XPATH, "//button[contains(., 'Log in') or @type='submit']")
-            ))
-            is_disabled = login_button.get_attribute("disabled")
+            login_button = wait.until(
+                EC.presence_of_all_elements_located((By.XPATH, login_button_xpath))
+            )[0]
+            is_disabled = (
+                login_button.get_attribute("disabled")
+                or login_button.get_attribute("aria-disabled") == "true"
+            )
+
 
             if is_disabled:
                 webhook.update_account_status("wrong_login_data", {
