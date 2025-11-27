@@ -160,7 +160,7 @@ class HumanTypingBehavior:
         return any(ord(c) > 127 for c in text)
 
 
-    def human_like_type(self, element, text, clear_field=True, typing_speed='normal', paste_only:bool = False):
+    def human_like_type(self, element, text, clear_field=True, typing_speed='normal', raw_mode=False):
         """
         Type text into element with human-like behavior.
         - If text > 50 chars, randomly decide:
@@ -188,12 +188,20 @@ class HumanTypingBehavior:
                 target.clear()
                 time.sleep(random.uniform(0.05, 0.15))
 
+             # If raw_mode → type EXACT characters with NO logic
+            if raw_mode:
+                for ch in text:
+                    target.send_keys(ch)
+                    time.sleep(random.uniform(0.03, 0.1))
+                print("[RAW MODE] Typed literal text:", text)
+                return True
+
             speed_multipliers = {'slow': 1.5, 'normal': 1.0, 'fast': 0.6}
             speed_multiplier = speed_multipliers.get(typing_speed, 1.0)
 
             # Decide if we paste all text at once
             paste_whole = len(text) > 50 and random.random() > 0.3
-            if paste_whole or self.contains_non_ascii(text) or paste_only:
+            if paste_whole or self.contains_non_ascii(text):
                 lines = text.split('\n')
 
                 for idx, line in enumerate(lines):

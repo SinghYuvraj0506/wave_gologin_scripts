@@ -48,7 +48,7 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
 
         human_mouse.human_like_move_to_element(password_input, click=True)
         human_typing.human_like_type(
-            password_input, text=password, typing_speed="slow", paste_only=True)
+            password_input, text=password, typing_speed="slow", raw_mode=True)
 
         time.sleep(3)
 
