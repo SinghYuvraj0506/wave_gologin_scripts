@@ -160,7 +160,7 @@ class HumanTypingBehavior:
         return any(ord(c) > 127 for c in text)
 
 
-    def human_like_type(self, element, text, clear_field=True, typing_speed='normal'):
+    def human_like_type(self, element, text, clear_field=True, typing_speed='normal', paste_only:bool = False):
         """
         Type text into element with human-like behavior.
         - If text > 50 chars, randomly decide:
@@ -193,7 +193,7 @@ class HumanTypingBehavior:
 
             # Decide if we paste all text at once
             paste_whole = len(text) > 50 and random.random() > 0.3
-            if paste_whole or self.contains_non_ascii(text):
+            if paste_whole or self.contains_non_ascii(text) or paste_only:
                 lines = text.split('\n')
 
                 for idx, line in enumerate(lines):
