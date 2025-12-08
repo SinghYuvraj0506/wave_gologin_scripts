@@ -43,6 +43,7 @@ class WebhookUtils:
         print("⏱️ Sending the webhook request for event",
               payload.get("event", ""))
 
+        response = None
         try:
             payload_str = json.dumps(payload)
             secret = Config.WEBHOOK_SECRET.encode()
