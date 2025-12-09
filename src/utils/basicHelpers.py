@@ -85,8 +85,7 @@ def get_proxy_config(session: str, country: str, city: str, fallbacks: list[str]
         else:
              print(f"⚠️ Failed to build config for {current_city}")
 
-    print("❌ All proxy cities (main + fallbacks) failed.")
-    return None
+    raise Exception("❌ All proxy cities (main + fallbacks) failed.")
 
 
 def getTOTP(secret_key: str) -> str:

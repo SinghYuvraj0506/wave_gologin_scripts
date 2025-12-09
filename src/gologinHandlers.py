@@ -92,7 +92,7 @@ class GologinHandler:
             self.change_gologin_proxy(proxyConfig)
         except Exception as e:
             raise BaseGologinError(
-                f"Failed to set proxy for {proxy_country}, tried main '{proxy_city}' and fallbacks {proxy_city_fallbacks}"
+                f"Failed to set proxy for {proxy_country}, tried main '{proxy_city}' and fallbacks {proxy_city_fallbacks}, error - {e}"
             )
         
 
