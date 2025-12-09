@@ -30,7 +30,7 @@ class WebhookUtils:
         # self.profile_id = "687e4c10ef91c2c4838ab98d"
         self.proxy_country = taskData.get("proxy_country")
         self.proxy_city = taskData.get("proxy_city")
-        self.proxy_city_fallbacks = taskData.get("proxy_city_fallbacks",None)
+        self.proxy_city_fallbacks = taskData.get("proxy_city_fallbacks",[])
         self.proxy_session_id = taskData.get("proxy_session_id")
         self.attributes = taskData.get("attributes", {})
 
@@ -38,6 +38,7 @@ class WebhookUtils:
             raise Exception("Error from server, Invalid response type")
 
         self.check_task_response()
+
 
     def send_webhook(self, payload: dict):
         print("⏱️ Sending the webhook request for event",
@@ -78,9 +79,11 @@ class WebhookUtils:
             print("Found Exception in sending webhook requests", response.json())
             return False
 
+
     def check_task_response(self):
         # check if for a particular task type it has the data other wise throw error
         return True
+
 
     def update_task_status(self, event: str, payload: dict = {}):
         """

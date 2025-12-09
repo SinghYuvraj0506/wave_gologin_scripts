@@ -4,7 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from config import Config
-from utils.basicHelpers import build_proxyconfig
+from utils.basicHelpers import get_proxy_config
 import traceback
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -86,28 +86,15 @@ class GologinHandler:
             self.create_gologin_profile()
             self.gologin.setProfileId(self.profile_id)
 
-        proxy_success = False
         try:
-            proxyConfig = build_proxyconfig(
-                session=session_id, city=proxy_city, country=proxy_country)
+            proxyConfig = get_proxy_config(
+                session=session_id, city=proxy_city, country=proxy_country, fallbacks=proxy_city_fallbacks)
             self.change_gologin_proxy(proxyConfig)
-            proxy_success = True
         except Exception as e:
-            if proxy_city_fallbacks is not None:
-                for i in proxy_city_fallbacks:
-                    try:
-                        proxyConfig = build_proxyconfig(
-                            session=session_id, city=i, country=proxy_country)
-                        self.change_gologin_proxy(proxyConfig)
-                        proxy_success = True
-                        break
-                    except Exception as e:
-                        pass
-
-        if not proxy_success:
             raise BaseGologinError(
                 f"Failed to set proxy for {proxy_country}, tried main '{proxy_city}' and fallbacks {proxy_city_fallbacks}"
             )
+        
 
     def connect_gologin_session(self):
         try:
@@ -134,12 +121,14 @@ class GologinHandler:
             traceback.print_exc()
             raise BaseGologinError("Gologin Connection Error", e)
 
+
     def stop_gologin_session(self):
         try:
             self.gologin.stop()
             print('✅ GoLogin session stopped successfully')
         except Exception as e:
             raise BaseGologinError("GologinStop Connection Error", e)
+
 
     def create_gologin_profile(self):
         try:
@@ -180,9 +169,11 @@ class GologinHandler:
             print(e)
             raise BaseGologinError("GologinProfileCreation Error", e)
 
+
     def change_gologin_proxy(self, proxyConfig):
         self.gologin.changeProfileProxy(self.profile_id, proxyConfig)
         print('✅ GoLogin proxy Alloted successfully')
+
 
     def download_cookies(self):
         cookies = self.gologin.downloadCookies()
