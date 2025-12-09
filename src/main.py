@@ -5,7 +5,6 @@ from scripts.exploreReel import explore_reels_randomly
 from scripts.browseExplore import browse_explore_page
 from scripts.goToMessages import search_and_message_users
 from scripts.goToProfile import goto_profile_and_save_image
-from utils.basicHelpers import get_ip_proxy
 import logging
 from selenium.webdriver.common.by import By
 from gologinHandlers import GologinHandler
@@ -72,9 +71,6 @@ class MainExecutor:
 
             # Get driver from gologin handler
             self.driver = self.gologin.driver
-
-            # Verify proxy
-            get_ip_proxy(self.driver)
 
             # Start screen observer
             self.observer = ScreenObserver(
