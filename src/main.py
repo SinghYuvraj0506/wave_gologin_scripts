@@ -326,6 +326,8 @@ class MainExecutor:
                 retry_count = 1
                 messages = self.webhook.attributes.get(
                     'messages_to_send', [])
+                send_to_new_users_only = self.webhook.attributes.get(
+                    'send_to_new_users_only', False)
 
                 while (retry_count <= 3):
                     print(f"Attempting #{retry_count} to process {len(messages)} messages")
@@ -333,7 +335,8 @@ class MainExecutor:
                         driver=self.driver,
                         messages_to_send=messages,
                         observer=self.observer,
-                        webhook=self.webhook
+                        webhook=self.webhook,
+                        send_to_new_users_only= send_to_new_users_only
                     )
 
                     recived_dms_count = sum(1 for m in messages if m.get("type") == "MESSAGE")

@@ -18,7 +18,7 @@ import re
 MESSAGE_MAX_RETRIES = 2
 USER_MAX_RETRIES = 2
 
-def search_and_message_users(driver, messages_to_send, observer: ScreenObserver, webhook: WebhookUtils, delay_between_messages=(30, 50)):
+def search_and_message_users(driver, messages_to_send, observer: ScreenObserver, webhook: WebhookUtils,send_to_new_users_only,  delay_between_messages=(30, 50)):
     """
     Search for usernames and send messages to them if available.
 
@@ -108,6 +108,9 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 print(f"✅ User @{username} found!")
 
                 if message_type == "MESSAGE":
+                    if (send_to_new_users_only and check_if_existing_messages_are_present(driver, username, observer)):
+                        raise Exception( f"❌ Username @{username} has previous chats with the ig user, hence marking as failed")
+
                     if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer):
                         successful_messages.append(username)
                         successful_fresh_dms += 1
@@ -418,6 +421,38 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
         return False
 
 
+def check_if_existing_messages_are_present(driver,username:str, observer: ScreenObserver):
+    """
+    Check if user is new or has talked priviously.
+
+    Args:
+        driver: Selenium WebDriver instance
+        username: Username to send followup to
+        observer: ScreenObserver instance
+
+    Returns: 
+        bool: If the user has already talked or not
+    """
+    try:
+        # Wait for chat elements to load
+        observer.health_monitor.revive_driver("click_body")
+
+        chat_elems = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, 'div[data-virtualized="false"]')
+            )
+        )
+
+        if not chat_elems:
+            return False
+        
+        return True
+
+    except Exception as e:
+        print(f"❌ Error in checking previous message for @{username}: {str(e)}")
+        return False
+
+
 def check_for_reply(driver, username, observer: ScreenObserver):
     """
     Check if user has replied in DM.
@@ -450,7 +485,7 @@ def check_for_reply(driver, username, observer: ScreenObserver):
         # Check if last message has an anchor tag with username
         try:
             anchor = last_elem.find_element(
-                By.CSS_SELECTOR, f'a[href*="{username}"]')
+                By.CSS_SELECTOR, f'a[href*="/{username}"]')
             if anchor:
                 print(f"✅ @{username} has already replied. Skipping followup.")
                 return True
