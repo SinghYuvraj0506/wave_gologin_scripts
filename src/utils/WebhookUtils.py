@@ -4,6 +4,7 @@ import requests
 import json
 from config import Config
 import os
+import time
 
 
 class WebhookUtils:
@@ -40,44 +41,53 @@ class WebhookUtils:
         self.check_task_response()
 
 
-    def send_webhook(self, payload: dict):
-        print("⏱️ Sending the webhook request for event",
-              payload.get("event", ""))
+    def send_webhook(self, payload: dict, retries=3):
+        print("⏱️ Sending the webhook request for event", payload.get("event"))
 
-        response = None
-        try:
-            payload_str = json.dumps(payload)
-            secret = Config.WEBHOOK_SECRET.encode()
-            signature = hmac.new(secret, payload_str.encode(),
-                                 hashlib.sha256).hexdigest()
+        for attempt in range(retries):
+            response = None
+            try:
+                payload_str = json.dumps(payload)
+                secret = Config.WEBHOOK_SECRET.encode()
+                signature = hmac.new(secret, payload_str.encode(),
+                                    hashlib.sha256).hexdigest()
 
-            headers = {
-                "Content-Type": "application/json",
-                "X-Signature": signature
-            }
+                headers = {
+                    "Content-Type": "application/json",
+                    "X-Signature": signature
+                }
 
-            webhook_url = Config.WEBHOOK_URL
-            response = requests.post(
-                    webhook_url, headers=headers, data=payload_str, timeout=(
-                        5, 15)
-                )
+                webhook_url = Config.WEBHOOK_URL
+                print("➡️ POST", webhook_url)
+                response = requests.post(
+                        webhook_url, headers=headers, data=payload_str, timeout=(
+                            10, 30)
+                    )
+                print("⬅️ Status", response.status_code)
 
-            response.raise_for_status()
-            response_data = response.json()
-            print(f"📡 Webhook sent successfully")
+                response.raise_for_status()
+                response_data = response.json()
+                print(f"📡 Webhook sent successfully")
 
-            if response_data.get("stop", False):
-                raise RuntimeError(
-                    f"Webhook response indicated to stop: {response_data}")
+                if response_data.get("stop", False):
+                    raise RuntimeError(
+                        f"Webhook response indicated to stop: {response_data}")
 
-            return response_data.get("data", None)
+                return response_data.get("data", None)
 
-        except RuntimeError:
-            raise
+            except RuntimeError:
+                raise
 
-        except Exception as e:
-            print("Found Exception in sending webhook requests", response.json())
-            return False
+            except Exception as e:
+                print(f"❌ Webhook failed (attempt {attempt+1})", repr(e))
+
+                if response is not None:
+                    print("❌ Response status:", response.status_code)
+                    print("❌ Response body:", response.text)
+                
+                time.sleep(2)
+
+        return False
 
 
     def check_task_response(self):
