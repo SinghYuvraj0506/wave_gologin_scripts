@@ -40,22 +40,23 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     time.sleep(2)
 
     basicUtils.click_anchor_by_href("/direct/inbox/")
-    time.sleep(2)
+    time.sleep(5)
 
-    observer.health_monitor.revive_driver("screenshot")
+    observer.health_monitor.revive_driver("refresh")
 
     # Check if we're on a valid user profile
     try:
         WebDriverWait(driver, 10).until(
-            EC.url_contains("/direct/inbox/")
+            EC.url_contains("/direct/inbox")
         )
+        time.sleep(5)
     except TimeoutException:
         try:
             observer.health_monitor.revive_driver("refresh")
             time.sleep(2)
             observer.health_monitor.revive_driver("click_body")
             WebDriverWait(driver, 12).until(
-                EC.url_contains("/direct/inbox/")
+                EC.url_contains("/direct/inbox")
             )
         except Exception as e:
             raise Exception("Page not clicked")
@@ -82,16 +83,17 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
             time.sleep(4)
 
             basicUtils.click_anchor_by_href("/direct/inbox/")
+            time.sleep(4)
             try:
-                observer.health_monitor.revive_driver("screenshot")
-                WebDriverWait(driver, 7).until(
-                    EC.url_contains("/direct/inbox/")
+                observer.health_monitor.revive_driver("refresh")
+                WebDriverWait(driver, 10).until(
+                    EC.url_contains("/direct/inbox")
                 )
             except TimeoutException:
                 try:
                     observer.health_monitor.revive_driver("refresh")
                     WebDriverWait(driver, 10).until(
-                        EC.url_contains("/direct/inbox/")
+                        EC.url_contains("/direct/inbox")
                     )
                 except Exception as e:
                     raise Exception("Page not clicked")
