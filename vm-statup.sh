@@ -25,9 +25,6 @@ source .venv/bin/activate
 # Run your main script
 python3 src/index.py
 
-# Delete VM
-python3 src/delete_vm.py
-
 # Conditional log upload
 if [[ "${SAVE_LOGS,,}" == "true" ]]; then
     BUCKET_NAME="wave-tasks-logs"
@@ -54,6 +51,9 @@ if [[ "${SAVE_LOGS,,}" == "true" ]]; then
 else
     echo "SAVE_LOGS is not set to true — skipping log upload."
 fi
+
+# Delete VM
+python3 src/delete_vm.py
 
 # Shutdown the VM
 shutdown -h now
