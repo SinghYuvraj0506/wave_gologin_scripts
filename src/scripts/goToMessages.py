@@ -439,15 +439,19 @@ def check_if_existing_messages_are_present(driver,username:str, observer: Screen
         # Wait for chat elements to load
         observer.health_monitor.revive_driver("click_body")
 
-        chat_elems = WebDriverWait(driver, 10).until(
+        wait = WebDriverWait(driver, 10)
+
+        chat_containers = wait.until(
             EC.presence_of_all_elements_located(
                 (By.CSS_SELECTOR, 'div[data-virtualized="false"]')
             )
         )
 
-        if not chat_elems:
+        message_spans = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR,'div[role="presentation"] > span[dir="auto"]')))
+
+        if (not chat_containers or len(chat_containers) == 0) and (not message_spans or len(message_spans) == 0):
             return False
-        
+
         return True
 
     except Exception as e:
