@@ -329,7 +329,7 @@ class MainExecutor:
                 send_to_new_users_only = self.webhook.attributes.get(
                     'send_to_new_users_only', False)
 
-                while (retry_count <= 3):
+                while (retry_count <= 5):
                     print(f"Attempting #{retry_count} to process {len(messages)} messages")
                     successful_fresh_dms, _ ,_ = search_and_message_users(
                         driver=self.driver,
