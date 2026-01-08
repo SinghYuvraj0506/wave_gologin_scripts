@@ -205,19 +205,20 @@ class HumanTypingBehavior:
                 lines = text.split('\n')
 
                 for idx, line in enumerate(lines):
-                    self.driver.execute_script("""
-                        const el = arguments[0];
-                        const val = arguments[1];
-                        el.focus();
-                        if (document.execCommand) {
-                            document.execCommand('insertText', false, val);
-                        } else {
-                            el.innerText += val;
-                            const evt = new InputEvent('input', {bubbles:true, cancelable:true, inputType:'insertFromPaste', data: val});
-                            el.dispatchEvent(evt);
-                        }
-                    """, target, line)
-                    time.sleep(random.uniform(0.1, 0.2))
+                    if line:
+                        self.driver.execute_script("""
+                            const el = arguments[0];
+                            const val = arguments[1];
+                            el.focus();
+                            if (document.execCommand) {
+                                document.execCommand('insertText', false, val);
+                            } else {
+                                el.innerText += val;
+                                const evt = new InputEvent('input', {bubbles:true, cancelable:true, inputType:'insertFromPaste', data: val});
+                                el.dispatchEvent(evt);
+                            }
+                        """, target, line)
+                        time.sleep(random.uniform(0.1, 0.2))
                 
                     # Add newline after each line except the last one
                     if idx < len(lines) - 1:
