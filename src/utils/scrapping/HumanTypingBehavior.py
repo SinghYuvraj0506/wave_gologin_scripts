@@ -200,25 +200,24 @@ class HumanTypingBehavior:
             speed_multiplier = speed_multipliers.get(typing_speed, 1.0)
 
             # Decide if we paste all text at once
-            paste_whole = len(text) > 50 and random.random() > 0.3
+            paste_whole = len(text) > 50 or random.random() < 0.3
             if paste_whole or self.contains_non_ascii(text):
                 lines = text.split('\n')
 
                 for idx, line in enumerate(lines):
-                    if line:  # Only paste non-empty lines
-                        self.driver.execute_script("""
-                            const el = arguments[0];
-                            const val = arguments[1];
-                            el.focus();
-                            if (document.execCommand) {
-                                document.execCommand('insertText', false, val);
-                            } else {
-                                el.innerText += val;
-                                const evt = new InputEvent('input', {bubbles:true, cancelable:true, inputType:'insertFromPaste', data: val});
-                                el.dispatchEvent(evt);
-                            }
-                        """, target, line)
-                        time.sleep(random.uniform(0.1, 0.2))
+                    self.driver.execute_script("""
+                        const el = arguments[0];
+                        const val = arguments[1];
+                        el.focus();
+                        if (document.execCommand) {
+                            document.execCommand('insertText', false, val);
+                        } else {
+                            el.innerText += val;
+                            const evt = new InputEvent('input', {bubbles:true, cancelable:true, inputType:'insertFromPaste', data: val});
+                            el.dispatchEvent(evt);
+                        }
+                    """, target, line)
+                    time.sleep(random.uniform(0.1, 0.2))
                 
                     # Add newline after each line except the last one
                     if idx < len(lines) - 1:
