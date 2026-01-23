@@ -22,6 +22,34 @@ export WEBHOOK_SECRET=$(curl -s -H "Metadata-Flavor: Google" http://metadata.goo
 cd /app
 source .venv/bin/activate
 
+echo "🚀 Starting VM initialization..."
+
+# CRITICAL: Wait for network to be fully ready
+echo "⏳ Waiting for network stack..."
+sleep 5
+
+# Wait for DNS to be ready
+echo "⏳ Waiting for DNS..."
+until host google.com > /dev/null 2>&1; do
+    echo "   DNS not ready, waiting..."
+    sleep 2
+done
+echo "✅ DNS ready"
+
+# Test internet connectivity
+echo "⏳ Testing internet..."
+until curl -s --max-time 5 http://clients3.google.com/generate_204 > /dev/null; do
+    echo "   Internet not ready, waiting..."
+    sleep 2
+done
+echo "✅ Internet ready"
+
+# Additional grace period
+echo "⏳ Grace period (5s)..."
+sleep 5
+
+echo "✅ Network fully initialized, starting application..."
+
 # Run your main script
 python3 src/index.py
 

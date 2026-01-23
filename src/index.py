@@ -1,3 +1,4 @@
+from utils.basicHelpers import preflight_checks
 import os
 from utils.WebhookUtils import WebhookUtils
 from main import MainExecutor
@@ -6,11 +7,14 @@ from config import Config
 from dotenv import load_dotenv
 load_dotenv()
 
-
 def init():
     try:
         webhook = None
         webhook = WebhookUtils(task_id=Config.TASK_ID)
+
+        if not preflight_checks():
+            print("❌ Preflight checks failed, exiting...")
+            raise Exception("Preflight checks failed")
 
         with SmartDisplay() as disp:
             executor = MainExecutor(webhook=webhook)
