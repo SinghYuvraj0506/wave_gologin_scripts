@@ -1,3 +1,4 @@
+from src.utils.basicHelpers import heartbeat_loop
 from utils.basicHelpers import preflight_checks
 import os
 from utils.WebhookUtils import WebhookUtils
@@ -5,12 +6,23 @@ from main import MainExecutor
 from pyvirtualdisplay.smartdisplay import SmartDisplay
 from config import Config
 from dotenv import load_dotenv
+import threading
 load_dotenv()
 
 def init():
     try:
         webhook = None
         webhook = WebhookUtils(task_id=Config.TASK_ID)
+
+        stop_event = threading.Event()
+
+        # heartbeat start -------------------
+        heartbeat_thread = threading.Thread(
+            target=heartbeat_loop,
+            args=('', stop_event, webhook),
+            daemon=True
+        )
+        heartbeat_thread.start()
 
         if not preflight_checks():
             print("❌ Preflight checks failed, exiting...")
@@ -44,9 +56,12 @@ def init():
             webhook.update_task_status("task_failed")
     
     finally:
+        # stop heartbeat event -----------
+        if stop_event is not None:
+            stop_event.set()
+
         with open("/tmp/script_executed.flag", "w") as f:
             f.write("true")
-
 
 if __name__ == '__main__':
     init()

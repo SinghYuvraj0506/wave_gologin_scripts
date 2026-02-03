@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     PROXY_PROVIDER:str
     WEBHOOK_SECRET: str
     WEBHOOK_URL: str
+    HEARTBEAT_INTERVAL: int
 
     model_config = SettingsConfigDict(
         env_file=".env",

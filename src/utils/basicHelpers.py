@@ -1,3 +1,4 @@
+from src.utils.WebhookUtils import WebhookUtils
 import pyotp
 from config import Config
 import requests
@@ -298,3 +299,12 @@ def getTOTP(secret_key: str) -> str:
     except Exception as e:
         raise Exception(
             f"TOTP generation failed", details=e)
+
+
+def heartbeat_loop(worker_id, stop_event, webhook: WebhookUtils):
+    while not stop_event.is_set():
+        webhook.heartbeat_update({
+            "worker_id": worker_id
+        })
+
+        time.sleep(Config.HEARTBEAT_INTERVAL)

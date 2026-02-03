@@ -149,3 +149,22 @@ class WebhookUtils:
             "event": event,
             "payload": payload,
         })
+
+    
+    def heartbeat_update(self, payload: dict = {}):
+        """
+        Update the Account status
+
+        Args:
+            payload: any extra data that need to transfer
+
+        Returns:
+            bool: Success status
+        """
+
+        return self.send_webhook({
+            "task_id": self.task_id,
+            "event": "task_heartbeat",
+            "payload": payload,
+        })
+
