@@ -1,4 +1,4 @@
-from src.utils.WebhookUtils import WebhookUtils
+from utils.WebhookUtils import WebhookUtils
 import pyotp
 from config import Config
 import requests

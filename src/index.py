@@ -1,5 +1,4 @@
-from src.utils.basicHelpers import heartbeat_loop
-from utils.basicHelpers import preflight_checks
+from utils.basicHelpers import preflight_checks, heartbeat_loop
 import os
 from utils.WebhookUtils import WebhookUtils
 from main import MainExecutor

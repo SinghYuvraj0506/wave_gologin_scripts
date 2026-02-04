@@ -3,7 +3,6 @@ import hashlib
 import requests
 import json
 from config import Config
-import os
 import time
 
 
