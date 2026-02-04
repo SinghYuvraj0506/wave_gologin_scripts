@@ -10,6 +10,7 @@ load_dotenv()
 
 def init():
     try:
+        stop_event = None
         webhook = None
         webhook = WebhookUtils(task_id=Config.TASK_ID)
 
