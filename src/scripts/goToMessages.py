@@ -108,6 +108,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
             # Search for the username
             if search_user(driver, username, human_mouse, human_typing, observer):
                 print(f"✅ User @{username} found!")
+                time.sleep(2)
 
                 if message_type == "MESSAGE":
                     if (send_to_new_users_only and check_if_existing_messages_are_present(driver, username, observer)):
@@ -123,6 +124,21 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                             "type": "MESSAGE"
                         })
                         print(f"✅ Message sent to @{username}")
+
+                        # wait for 10 seconds for reply check and if replied then send the webhook as replied
+                        time.sleep(10)
+                        replied = check_for_reply(driver, username, observer)
+
+                        if replied:
+                            webhook.update_campaign_status("sent_dm", {
+                                "campaign_id": webhook.attributes.get("campaign_id", None),
+                                "username": username,
+                                "data": {
+                                    "replied": True
+                                },
+                                "type": "MESSAGE"
+                            })
+
 
                     else:
                         raise Exception(
@@ -438,17 +454,18 @@ def check_if_existing_messages_are_present(driver,username:str, observer: Screen
     try:
         # Wait for chat elements to load
         observer.health_monitor.revive_driver("click_body")
+        time.sleep(3)
 
-        wait = WebDriverWait(driver, 10)
-
-        chat_containers = wait.until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, 'div[data-virtualized="false"]')
-            )
+        # old reply check method --------
+        chat_containers = driver.find_elements(
+            By.CSS_SELECTOR,
+            'div[data-virtualized="false"]'
         )
 
-        message_spans = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR,'div[role="presentation"] > span[dir="auto"]')))
+        # new reply check method (check for spans with text message either sender or reciever)
+        message_spans = driver.find_elements(By.CSS_SELECTOR,'div[role="presentation"] > span[dir="auto"]')
 
+        # if no chat containers or message spans are found then return False
         if (not chat_containers or len(chat_containers) == 0) and (not message_spans or len(message_spans) == 0):
             return False
 
@@ -474,31 +491,35 @@ def check_for_reply(driver, username, observer: ScreenObserver):
     try:
         # Wait for chat elements to load
         observer.health_monitor.revive_driver("click_body")
+        time.sleep(3)
 
-        chat_elems = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, 'div[data-virtualized="false"]')
-            )
+        # ---------- Old method ----------
+        chat_containers = driver.find_elements(
+            By.CSS_SELECTOR,
+            'div[data-virtualized="false"]'
         )
 
-        if not chat_elems:
-            print(f"⚠️ No chat elements found for @{username}")
-            return False
-
-        # Get the last chat element
-        last_elem = chat_elems[-1]
-
-        # Check if last message has an anchor tag with username
-        try:
-            anchor = last_elem.find_element(
-                By.CSS_SELECTOR, f'a[href*="/{username}"]')
-            if anchor:
+        if chat_containers:
+            last_elem = chat_containers[-1]
+            anchors = last_elem.find_elements(
+                By.CSS_SELECTOR,
+                f'a[href*="/{username}"]'
+            )
+            if anchors:
                 print(f"✅ @{username} has already replied. Skipping followup.")
                 return True
-        except:
-            # No anchor found → means no reply yet
-            print(f"ℹ️ @{username} has not replied. Sending followup...")
 
+        # check by new method ---------------------
+        message_spans = driver.find_elements(
+            By.XPATH,
+            f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")] and not(following::div[@role="none" and not(../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]])])] //span[@dir="auto"]'
+        )
+
+        if message_spans:
+            print(f"✅ @{username} has already replied. Skipping followup.")
+            return True
+
+        print(f"ℹ️ @{username} has not replied. Sending followup...")
         return False
 
     except Exception as e:
