@@ -518,7 +518,7 @@ def check_for_unread_at_top_of_chat(driver, username, observer: ScreenObserver):
         # check by new method ---------------------
         message_spans = driver.find_elements(
             By.XPATH,
-            f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")] and not(following::div[@role="none"])] //span[@dir="auto"]'
+            f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]] and not(following::div[@role="none"])] //span[@dir="auto"]'
         )
 
         if message_spans:
@@ -569,7 +569,7 @@ def check_for_reply(driver, username, observer: ScreenObserver):
         # check by new method ---------------------
         message_spans = driver.find_elements(
             By.XPATH,
-            f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")] and not(following::div[@role="none"])] //span[@dir="auto"]'
+            f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]] and not(following::div[@role="none"])] //span[@dir="auto"]'
         )
 
         if message_spans:
