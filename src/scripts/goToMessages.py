@@ -316,7 +316,7 @@ def is_message_sent(driver, expected_text: str) -> bool:
     try:
         chat_elems = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, 'div[data-virtualized="false"]')
+                (By.CSS_SELECTOR, 'div[role="presentation"] > span[dir="auto"]')
             )
         )
 
@@ -324,17 +324,16 @@ def is_message_sent(driver, expected_text: str) -> bool:
             print(f"⚠️ No chat elements found")
             return False
 
-        last_elem = chat_elems[-1]
-        last_msg = normalize_text(last_elem.text)
         expected_msg = normalize_text(expected_text)
 
-        # Exact match OR last message starts with expected (for emojis/trailing chars)
-        if last_msg == expected_msg or last_msg.startswith(expected_msg):
-            return True
-        else:
-            print(
-                f"❌ Last message mismatch.\nExpected: {expected_msg}\nFound: {last_msg}")
-            return False
+        # Check last 3 messages instead of just the last one
+        for elem in reversed(chat_elems[-3:]):
+            msg = normalize_text(elem.text)
+            if msg == expected_msg or msg.startswith(expected_msg):
+                return True
+
+        print(f"❌ Message not found in last 3 chat elements.")
+        return False
 
     except Exception as e:
         print(f"⚠️ Could not verify message: {e}")
@@ -414,6 +413,7 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
 
                     except TimeoutException:
                         print("⚠️ No sending indicator, checking chat...")
+                        time.sleep(2)
                         if is_message_sent(driver, message_text):
                             print(
                                 f"✅ Message confirmed in chat to @{username}: {message_text}")
