@@ -563,7 +563,7 @@ def check_for_reply(driver, username, observer: ScreenObserver):
                 f'a[href*="/{username}"]'
             )
             if anchors:
-                print(f"✅ @{username} has already replied. Skipping followup.")
+                print(f"✅ @{username} has already replied.")
                 return True
 
         # check by new method ---------------------
@@ -573,10 +573,10 @@ def check_for_reply(driver, username, observer: ScreenObserver):
         )
 
         if message_spans:
-            print(f"✅ @{username} has already replied. Skipping followup.")
+            print(f"✅ @{username} has already replied.")
             return True
 
-        print(f"ℹ️ @{username} has not replied. Sending followup...")
+        print(f"ℹ️ @{username} has not replied.")
         return False
 
     except Exception as e:
