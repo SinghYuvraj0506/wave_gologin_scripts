@@ -117,7 +117,7 @@ class WebhookUtils:
         Update the Camapaign status
 
         Args:
-            event: Name of event, possible options 'sent_dm', 'call_for_extra_dms'
+            event: Name of event, possible options 'sent_dm', 'call_for_extra_dms', 'failed_dm_flag_by_instagram
             payload: any extra data that need to transfer poosible fields are 
                     :campaign_id, username, data, type, failed
 

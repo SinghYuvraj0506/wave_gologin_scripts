@@ -118,7 +118,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                     if (send_to_new_users_only and check_if_existing_messages_are_present(driver, username, observer)):
                         raise Exception( f"❌ Username @{username} has previous chats with the ig user, hence marking as failed")
 
-                    if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer):
+                    if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer, webhook):
                         successful_messages.append(username)
                         successful_fresh_dms += 1
                         webhook.update_campaign_status("sent_dm", {
@@ -165,7 +165,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                         })
 
                     else:
-                        if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer):
+                        if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer, webhook):
                             successful_messages.append(username)
                             webhook.update_campaign_status("sent_dm", {
                                 "campaign_id": webhook.attributes.get("campaign_id", None),
@@ -340,7 +340,83 @@ def is_message_sent(driver, expected_text: str) -> bool:
         return False
 
 
-def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBehavior,  human_typing: HumanTypingBehavior, observer: ScreenObserver):
+def verify_message_sent(driver, username, message_text, observer) -> tuple[bool, str]:
+    """
+    Verify if a message was successfully sent after pressing RETURN.
+    
+    Returns:
+        tuple[bool, str]: (success, reason)
+            - (True, "sending_indicator")  → SVG appeared and disappeared cleanly
+            - (True, "found_in_chat")      → Found in chat after refresh
+            - (False, "failed_svg")        → Instagram showed failure icon (emergency)
+            - (False, "not_in_chat")       → Not found in chat after refresh
+            - (False, "error")             → Unexpected exception
+    """
+    try:
+        # ── CHECK 1: Sending indicator (SVG spinner) ──────────────────────────
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "svg[aria-label='IGD message sending status icon']")
+                )
+            )
+            print("⏳ Sending indicator detected, waiting for it to clear...")
+
+            # ── CHECK 2 (inline): While waiting for spinner to go, watch for failure SVG ──
+            # Poll every 500ms instead of a blind until_not, so we can catch failure icon
+            deadline = time.time() + 10  # max 10s for spinner to disappear
+            while time.time() < deadline:
+                # Check for failure SVG first (emergency)
+                failed_svgs = driver.find_elements(
+                    By.CSS_SELECTOR, "svg[aria-label='Failed to send']"
+                )
+                if failed_svgs:
+                    print(f"🚨 EMERGENCY: Instagram reported failed to send to @{username}")
+                    return False, "failed_svg"
+
+                # Check if spinner is gone
+                sending_svgs = driver.find_elements(
+                    By.CSS_SELECTOR, "svg[aria-label='IGD message sending status icon']"
+                )
+                if not sending_svgs:
+                    print(f"✅ Message sent to @{username}: {message_text}")
+                    return True, "sending_indicator"
+
+                time.sleep(0.5)
+
+            # Spinner never disappeared in time — fall through to chat check
+            print("⚠️ Sending indicator didn't clear in time, falling back to chat check...")
+
+        except TimeoutException:
+            # Spinner never appeared — not necessarily bad, fall through
+            print("⚠️ No sending indicator appeared, checking for failure SVG...")
+
+            # ── CHECK 2 (standalone): Spinner never showed, but failure might have ──
+            failed_svgs = driver.find_elements(
+                By.CSS_SELECTOR, "svg[aria-label='Failed to send']"
+            )
+            if failed_svgs:
+                print(f"🚨 EMERGENCY: Failed to send icon found for @{username}")
+                return False, "failed_svg"
+
+        # ── CHECK 3: Refresh + scan chat for the message ─────────────────────
+        print("🔄 Refreshing and verifying message in chat...")
+        observer.health_monitor.revive_driver("refresh")
+        time.sleep(3)
+
+        if is_message_sent(driver, message_text):
+            print(f"✅ Message confirmed in chat for @{username}: {message_text}")
+            return True, "found_in_chat"
+        else:
+            print(f"❌ Message NOT found in chat for @{username}: {message_text}")
+            return False, "not_in_chat"
+
+    except Exception as e:
+        print(f"❌ Unexpected error during verification for @{username}: {e}")
+        return False, "error"
+
+
+def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBehavior,  human_typing: HumanTypingBehavior, observer: ScreenObserver, webhook: WebhookUtils):
     """
     Send a message to a user from their profile page.
 
@@ -391,45 +467,31 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
                     observer.health_monitor.revive_driver("screenshot")
                     message_input.send_keys(Keys.RETURN)
 
-                    # Wait for sending indicator
-                    try:
-                        WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located(
-                                (By.CSS_SELECTOR,
-                                 "svg[aria-label='IGD message sending status icon']")
-                            )
-                        )
-                        print(
-                            "⏳ Sending indicator detected, waiting for completion...")
+                    success, reason = verify_message_sent(driver, username, message_text, observer)
 
-                        WebDriverWait(driver, 10).until_not(
-                            EC.presence_of_element_located(
-                                (By.CSS_SELECTOR,
-                                 "svg[aria-label='IGD message sending status icon']")
-                            )
-                        )
-                        print(f"✅ Message sent to @{username}: {message_text}")
+                    if success:
                         sent = True
 
-                    except TimeoutException:
-                        print("⚠️ No sending indicator, checking chat...")
-                        time.sleep(2)
-                        if is_message_sent(driver, message_text):
-                            print(
-                                f"✅ Message confirmed in chat to @{username}: {message_text}")
-                            sent = True
+                    elif reason == "failed_svg":
+                        # Emergency — Instagram explicitly rejected it, stop immediately
+                        webhook.update_campaign_status("failed_dm_flag_by_instagram", {
+                            "campaign_id": webhook.attributes.get("campaign_id", None)
+                        })
+                        return False
+
+                    else:
+                        # Not confirmed — retry
+                        retries += 1
+                        if retries <= MESSAGE_MAX_RETRIES:
+                            print(f"🔄 Retrying DM to @{username}... (Attempt {retries})")
+                            observer.health_monitor.revive_driver("refresh")
+                            time.sleep(5)
                         else:
-                            retries += 1
-                            if retries <= MESSAGE_MAX_RETRIES:
-                                print(
-                                    f"🔄 Retrying DM to @{username} after refresh... (Attempt {retries})")
-                                observer.health_monitor.revive_driver(
-                                    "refresh")
-                                time.sleep(5)
-                            else:
-                                print(
-                                    f"❌ Failed to send message after {MESSAGE_MAX_RETRIES} retries.")
-                                return False
+                            print(f"❌ Failed to send after {MESSAGE_MAX_RETRIES} retries.")
+                            return False
+
+                except RuntimeError as r:
+                    raise
 
                 except Exception as inner_e:
                     print(
@@ -437,6 +499,9 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
                     return False
 
         return True
+
+    except RuntimeError as r:
+        raise
 
     except Exception as e:
         print(f"❌ Fatal error while sending messages to @{username}: {e}")
@@ -643,3 +708,5 @@ def random_warmup(driver, observer: ScreenObserver):
 
     except Exception as e:
         print("❌ Found error in warming up")
+
+
