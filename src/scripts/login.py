@@ -86,7 +86,6 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
                 or login_button.get_attribute("aria-disabled") == "true"
             )
 
-
             if is_disabled:
                 webhook.update_account_status("wrong_login_data", {
                     "account_id": webhook.account_id,
@@ -103,6 +102,12 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
 
         # ⏳ wait briefly for potential error
         time.sleep(8)
+
+        # ── NEW: Check for email verification checkpoint ───────────────────────────
+        if not handle_email_verification_checkpoint(driver, webhook):
+            print("🛑 Login stopped — email verification required, reported to webhook")
+            raise RuntimeError("❌ Email verification required")
+
         keywords = ["incorrect", "sorry", "double-check", "credentials"]
 
         # Only look inside <span> tags that might show login errors
@@ -159,3 +164,47 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
     except Exception as e:
         print(f"❌ Unexpected error during login: {e}")
         return False
+
+
+def handle_email_verification_checkpoint(driver, webhook:WebhookUtils) -> bool:
+    """
+    Detects if Instagram is asking for email verification (Check your email screen).
+    If detected, reports to webhook and returns False to stop login.
+
+    Returns:
+        False if email checkpoint detected (login should stop)
+        True if not detected (login can continue)
+    """
+    try:
+        # ── Detection Method 1: URL contains auth_platform/codeentry ──────────
+        current_url = driver.current_url
+        if "auth_platform/codeentry" in current_url:
+            print("🔒 Email checkpoint detected via URL")
+            webhook.update_account_status("login_manual_interuption_required", {
+            "account_id": webhook.account_id,
+            "metadata": "Login Stopped, Email Checkpoint Occured at: " + driver.current_url,
+        })
+            return False
+
+        # ── Detection Method 2: h2 with "Check your email" text ───────────────
+        try:
+            h2_elems = driver.find_elements(By.CSS_SELECTOR, "h2[dir='auto']")
+            for h2 in h2_elems:
+                if "check your email" in h2.text.strip().lower():
+                    print("🔒 Email checkpoint detected via h2 text")
+                    webhook.update_account_status("login_manual_interuption_required", {
+                    "account_id": webhook.account_id,
+                    "metadata": "Login Stopped, Email Checkpoint Occured at: " + driver.current_url,
+                })
+                    return False
+        except Exception as e:
+            print(f"⚠️ Error scanning h2 elements: {e}")
+
+        # ── Not detected ──────────────────────────────────────────────────────
+        return True
+
+    except Exception as e:
+        print(f"⚠️ Unexpected error in email checkpoint detection: {e}")
+        # Safe default — don't block login on detection failure
+        return True
+
