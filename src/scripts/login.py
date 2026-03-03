@@ -118,24 +118,30 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         error_xpath = f"//span[{xpath_cond}]"
 
         try:
-            # Wait up to 5s for any matching <span> with those words
             error_elem = WebDriverWait(driver, 5).until(
                 EC.visibility_of_element_located((By.XPATH, error_xpath))
             )
 
-            time.sleep(0.3)  # debounce in case of transient UI
-            text = error_elem.text.strip().lower()
-            print(f"⚠️ Found potential login error text: {text}")
+            # ── Don't trust it yet — Instagram flashes errors transiently ─────
+            # If login actually succeeded, the element will be gone after a few seconds
+            print("⚠️ Potential credential error detected, waiting to confirm it's persistent...")
+            time.sleep(4)
 
-            if any(k in text for k in keywords):
+            # Re-query to avoid stale element
+            error_elems = driver.find_elements(By.XPATH, error_xpath)
+
+            if not error_elems:
+                print("ℹ️ Error text disappeared — was transient, login likely succeeded.")
+            else:
+                text = error_elems[0].text.strip().lower()
+                print(f"⚠️ Credential error confirmed (persistent): {text}")
+
                 webhook.update_account_status("wrong_login_data", {
                     "account_id": webhook.account_id,
                     "profile_id": webhook.profile_id,
                     "error_type": "CREDENTIALS"
                 })
                 raise RuntimeError(f"❌ Invalid credentials detected: {text}")
-            else:
-                print("ℹ️ Found span, but message not credential-related — continuing login flow.")
 
         except TimeoutException:
             # No visible span with these words — normal flow
@@ -183,7 +189,7 @@ def handle_email_verification_checkpoint(driver, webhook:WebhookUtils) -> bool:
             webhook.update_account_status("login_manual_interuption_required", {
             "account_id": webhook.account_id,
             "metadata": "Login Stopped, Email Checkpoint Occured at: " + driver.current_url,
-        })
+            })
             return False
 
         # ── Detection Method 2: h2 with "Check your email" text ───────────────
