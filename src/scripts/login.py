@@ -11,59 +11,43 @@ from utils.scrapping.ScreenObserver import ScreenObserver
 from utils.WebhookUtils import WebhookUtils
 from utils.connectivityChecks import check_connectivity
 
-MAX_LOGIN_RETRIES = 3
-
 def insta_login(driver, username: str, password: str, secret_key: str, observer: ScreenObserver, webhook: WebhookUtils, proxy_config: dict):
     """
-    Logs into Instagram using the provided Selenium driver.
-    Retries the full login flow up to MAX_LOGIN_RETRIES times.
-    On credential error + healthy network = wrong credentials, stop.
-    On credential error + bad network = webhook update_session_and_restart_task, stop.
+    Logs into Instagram with up to MAX_LOGIN_RETRIES internal sub-retries.
+
+    Global attempt awareness:
+      - If NOT the last global attempt: return False silently on any failure
+        (no wrong_login_data or update_session webhooks — server will retry)
+      - If IS the last global attempt: send appropriate failure webhooks
+        so the server knows the real reason and can mark accordingly
+
+    Args:
+        global_attempt: current attempt number from server (1-indexed)
+        total_attempts: total attempts server will make before giving up
     """
+    is_last_attempt = (webhook.attributes.get("attempt",0) >= webhook.attributes.get("max_attempts",2))
+
     proxy_host = proxy_config.get("host")
     proxy_port = proxy_config.get("port")
     proxy_user = proxy_config.get("username")
     proxy_pass = proxy_config.get("password")
 
+    print(f"\n🌐 insta_login | global attempt {webhook.attributes.get("attempt",0)}/{webhook.attributes.get("max_attempts",2)} | last={is_last_attempt}")
+
     try:
-        for attempt in range(1, MAX_LOGIN_RETRIES + 1):
-            print(f"\n🔁 Login attempt {attempt}/{MAX_LOGIN_RETRIES}")
-            result = _attempt_login(
-                driver=driver,
-                username=username,
-                password=password,
-                secret_key=secret_key,
-                observer=observer,
-                webhook=webhook,
-                proxy_host=proxy_host,
-                proxy_port=proxy_port,
-                proxy_user=proxy_user,
-                proxy_pass=proxy_pass,
-            )
-
-            if result == "success":
-                print("✅ Login Script Execution done!")
-                return True
-
-            elif result == "retry":
-                # Credential error with healthy network — re-attempt full login
-                if attempt < MAX_LOGIN_RETRIES:
-                    print(f"🔄 Retrying full login (attempt {attempt + 1}/{MAX_LOGIN_RETRIES})...")
-                    time.sleep(5)
-                    continue
-                else:
-                    # Exhausted all retries with healthy network = real bad credentials
-                    print(f"❌ Login failed after {MAX_LOGIN_RETRIES} attempts with healthy network")
-                    webhook.update_account_status("wrong_login_data", {
-                        "account_id": webhook.account_id,
-                        "profile_id": webhook.profile_id,
-                        "error_type": "CREDENTIALS",
-                    })
-                    raise RuntimeError("Invalid Credentials Error")
-
-            elif result == "stop":
-                # Hard stop — email checkpoint, 2FA failure, runtime error etc
-                return False
+        return _attempt_login(
+            driver=driver,
+            username=username,
+            password=password,
+            secret_key=secret_key,
+            observer=observer,
+            webhook=webhook,
+            proxy_host=proxy_host,
+            proxy_port=proxy_port,
+            proxy_user=proxy_user,
+            proxy_pass=proxy_pass,
+            is_last_attempt=is_last_attempt
+        )
 
     except RuntimeError:
         raise
@@ -73,14 +57,12 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         return False
 
 
-def _attempt_login(driver, username:str, password:str, secret_key:str, observer:ScreenObserver, webhook:WebhookUtils, proxy_host:str, proxy_port:int, proxy_user:str, proxy_pass:str) -> str:
+def _attempt_login(driver, username:str, password:str, secret_key:str, observer:ScreenObserver, webhook:WebhookUtils, proxy_host:str, proxy_port:int, proxy_user:str, proxy_pass:str, is_last_attempt: bool = False) -> bool:
     """
     Performs a single full login attempt.
 
     Returns:
-        "success"       → logged in successfully
-        "retry"         → credential error but network healthy, worth retrying
-        "stop"          → hard failure, don't retry (email checkpoint, 2FA fail, etc)
+        Bool
     """
     try:
         human_mouse = HumanMouseBehavior(driver)
@@ -125,7 +107,7 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
 
         except Exception as e:
             print(f"❌ Failed detecting login form: {e}")
-            return "retry"
+            return False
 
         # ── Type credentials ───────────────────────────────────────────────────
         try:
@@ -133,7 +115,7 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
             password_input = wait.until(EC.presence_of_element_located(password_selector))
         except TimeoutException:
             print("❌ Login form fields not found")
-            return "retry"
+            return False
 
         human_mouse.human_like_move_to_element(username_input, click=True)
         human_typing.human_like_type(username_input, text=username, typing_speed="normal")
@@ -154,7 +136,7 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
             )
             if is_disabled:
                 print("❌ Login button is disabled — form incomplete or invalid")
-                return "retry"
+                return False
 
         except TimeoutException:
             print("⚠️ Login button not found (skipping disabled check)")
@@ -162,43 +144,66 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
         # ── Submit ─────────────────────────────────────────────────────────────
         password_input.send_keys(Keys.RETURN)
 
-        time.sleep(8)
+        # ✅ Wait for URL to change instead of fixed sleep
+        print("⏳ Waiting for Instagram to process login...")
+        login_url = driver.current_url
+        try:
+            WebDriverWait(driver, 20).until(lambda d: d.current_url != login_url)
+            print(f"✅ URL changed to: {driver.current_url}")
+        except TimeoutException:
+            print("⚠️ URL did not change after 20s — checking page state...")
+        time.sleep(2)
 
         # ── Email verification checkpoint ──────────────────────────────────────
         if not handle_email_verification_checkpoint(driver, webhook):
             print("🛑 Email verification required — stopping")
-            return "stop"
+            raise RuntimeError("Email verification required")
 
-        if not handle_credentials_check(
-            driver=driver,
-            webhook=webhook,
-            proxy_host=proxy_host,
-            proxy_port=proxy_port,
-            proxy_user=proxy_user,
-            proxy_pass=proxy_pass,
-        ):
-            print("🛑 Credential check failed — stopping")
-            return "retry"
-
+        # Skip if already redirected past login page
+        current_url = driver.current_url
+        if any(x in current_url for x in ["two_factor", "onetap", "challenge"]):
+            print(f"✅ Credentials accepted — redirected to {current_url}")
+        else:
+            if not handle_credentials_check(
+                driver=driver,
+                proxy_host=proxy_host,
+                proxy_port=proxy_port,
+                proxy_user=proxy_user,
+                proxy_pass=proxy_pass,
+            ):
+                print("🛑 Credential check failed — stopping")
+                if(is_last_attempt):
+                    webhook.update_account_status("wrong_login_data", {
+                        "account_id": webhook.account_id,
+                        "profile_id": webhook.profile_id,
+                        "error_type": "CREDENTIALS",
+                    })
+                    raise RuntimeError("Invalid Credentials Error")
+                else:
+                    webhook.update_account_status("update_session_and_restart_task", {
+                        "account_id": webhook.account_id,
+                        "profile_id": webhook.profile_id,
+                        "error_type": "CREDENTIALS",
+                    })  
+                    return False
+            
         # ── 2FA ────────────────────────────────────────────────────────────────
         if not handle_two_factor_authentication(driver, secret_key=secret_key, webhook=webhook):
-            return "stop"
+            return False
 
         time.sleep(40)
-        return "success"
-
+        return True
 
     except RuntimeError:
         raise
 
     except Exception as e:
         print(f"❌ Unexpected error during login attempt: {e}")
-        return "stop"
+        return False
 
 
 def handle_credentials_check(
     driver,
-    webhook: WebhookUtils,
     proxy_host: str,
     proxy_port: int,
     proxy_user: str,
@@ -264,12 +269,7 @@ def handle_credentials_check(
     # ── Step 4a: Connectivity failed — network is the culprit ─────────────────
     if not connectivity.success:
         print(f"🌐 Connectivity failed at [{connectivity.failed_at}]: {connectivity.failure_reason}")
-        print("📡 Sending update_session_and_restart_task webhook...")
-        webhook.update_account_status("update_session_and_restart_task", {
-            "account_id": webhook.account_id
-        })
-        raise RuntimeError(f"Connectivity failed at [{connectivity.failed_at}]: {connectivity.failure_reason}")
-
+        return False
 
     # ── Step 5: All retries exhausted + connectivity healthy = real bad creds ──
     print(f"❌ Credential error persisted across with healthy network")
