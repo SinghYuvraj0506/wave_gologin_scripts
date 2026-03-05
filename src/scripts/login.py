@@ -59,7 +59,7 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
                         "profile_id": webhook.profile_id,
                         "error_type": "CREDENTIALS",
                     })
-                    return False
+                    raise RuntimeError("Invalid Credentials Error")
 
             elif result == "stop":
                 # Hard stop — email checkpoint, 2FA failure, runtime error etc
