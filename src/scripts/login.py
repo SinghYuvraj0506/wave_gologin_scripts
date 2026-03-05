@@ -25,14 +25,17 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         global_attempt: current attempt number from server (1-indexed)
         total_attempts: total attempts server will make before giving up
     """
-    is_last_attempt = (webhook.attributes.get("attempt",0) >= webhook.attributes.get("max_attempts",2))
+    attempt = webhook.attributes.get("attempt", 0)
+    max_attempts = webhook.attributes.get("max_attempts", 2)
+
+    is_last_attempt = attempt >= max_attempts
 
     proxy_host = proxy_config.get("host")
     proxy_port = proxy_config.get("port")
     proxy_user = proxy_config.get("username")
     proxy_pass = proxy_config.get("password")
 
-    print(f"\n🌐 insta_login | global attempt {webhook.attributes.get("attempt",0)}/{webhook.attributes.get("max_attempts",2)} | last={is_last_attempt}")
+    print(f"\n🌐 insta_login | global attempt {attempt}/{max_attempts} | last={is_last_attempt}")
 
     try:
         return _attempt_login(
