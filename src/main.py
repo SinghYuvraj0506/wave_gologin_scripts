@@ -15,7 +15,6 @@ from selenium.common.exceptions import TimeoutException
 import json
 import sys
 
-
 class MainExecutor:
     def __init__(self, webhook: WebhookUtils):
         self.profile_id = webhook.profile_id
@@ -31,6 +30,7 @@ class MainExecutor:
         self.cookies = None
         self.webhook = webhook
         self.need_task_retry = False
+        self.proxyConfig = None
 
         # Setup logging
         logging.basicConfig(level=logging.INFO)
@@ -66,6 +66,7 @@ class MainExecutor:
             )
 
             self.profile_id = self.gologin.profile_id
+            self.proxyConfig = self.gologin.proxyConfig
 
             self.gologin.connect_gologin_session()
 
@@ -232,7 +233,7 @@ class MainExecutor:
 
             # Perform login
             login_success = insta_login(
-                driver=self.driver, username=username, password=password, secret_key=secret_key, observer=self.observer, webhook=self.webhook)
+                driver=self.driver, username=username, password=password, secret_key=secret_key, observer=self.observer, webhook=self.webhook, proxy_config=self.proxyConfig)
 
             if login_success:
                 time.sleep(3)  # Wait for login to complete

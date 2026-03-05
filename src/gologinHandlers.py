@@ -75,6 +75,7 @@ class GologinHandler:
         self.profile_id = profile_id
         self.account_id = account_id
         self.driver = None
+        self.proxyConfig = None
 
         if profile_id is None:
             self.create_gologin_profile()
@@ -89,6 +90,7 @@ class GologinHandler:
         try:
             proxyConfig = get_proxy_config(
                 session=session_id, city=proxy_city, country=proxy_country, fallbacks=proxy_city_fallbacks)
+            self.proxyConfig = proxyConfig
             self.change_gologin_proxy(proxyConfig)
         except Exception as e:
             raise BaseGologinError(

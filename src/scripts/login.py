@@ -9,19 +9,79 @@ from scripts.twofactorCheck import handle_two_factor_authentication
 import time
 from utils.scrapping.ScreenObserver import ScreenObserver
 from utils.WebhookUtils import WebhookUtils
+from utils.connectivityChecks import check_connectivity
 
+MAX_LOGIN_RETRIES = 3
 
-def insta_login(driver, username: str, password: str, secret_key: str, observer: ScreenObserver, webhook: WebhookUtils):
+def insta_login(driver, username: str, password: str, secret_key: str, observer: ScreenObserver, webhook: WebhookUtils, proxy_config: dict):
     """
     Logs into Instagram using the provided Selenium driver.
+    Retries the full login flow up to MAX_LOGIN_RETRIES times.
+    On credential error + healthy network = wrong credentials, stop.
+    On credential error + bad network = webhook update_session_and_restart_task, stop.
+    """
+    proxy_host = proxy_config.get("host")
+    proxy_port = proxy_config.get("port")
+    proxy_user = proxy_config.get("username")
+    proxy_pass = proxy_config.get("password")
 
-    Args:
-        driver: An instance of a Selenium WebDriver.
+    try:
+        for attempt in range(1, MAX_LOGIN_RETRIES + 1):
+            print(f"\n🔁 Login attempt {attempt}/{MAX_LOGIN_RETRIES}")
+            result = _attempt_login(
+                driver=driver,
+                username=username,
+                password=password,
+                secret_key=secret_key,
+                observer=observer,
+                webhook=webhook,
+                proxy_host=proxy_host,
+                proxy_port=proxy_port,
+                proxy_user=proxy_user,
+                proxy_pass=proxy_pass,
+            )
+
+            if result == "success":
+                print("✅ Login Script Execution done!")
+                return True
+
+            elif result == "retry":
+                # Credential error with healthy network — re-attempt full login
+                if attempt < MAX_LOGIN_RETRIES:
+                    print(f"🔄 Retrying full login (attempt {attempt + 1}/{MAX_LOGIN_RETRIES})...")
+                    time.sleep(5)
+                    continue
+                else:
+                    # Exhausted all retries with healthy network = real bad credentials
+                    print(f"❌ Login failed after {MAX_LOGIN_RETRIES} attempts with healthy network")
+                    webhook.update_account_status("wrong_login_data", {
+                        "account_id": webhook.account_id,
+                        "profile_id": webhook.profile_id,
+                        "error_type": "CREDENTIALS",
+                    })
+                    return False
+
+            elif result == "stop":
+                # Hard stop — email checkpoint, 2FA failure, runtime error etc
+                return False
+
+    except RuntimeError:
+        raise
+
+    except Exception as e:
+        print(f"❌ Unexpected error during login: {e}")
+        return False
+
+
+def _attempt_login(driver, username:str, password:str, secret_key:str, observer:ScreenObserver, webhook:WebhookUtils, proxy_host:str, proxy_port:int, proxy_user:str, proxy_pass:str) -> str:
+    """
+    Performs a single full login attempt.
 
     Returns:
-        bool: True if login is successful, False otherwise.
+        "success"       → logged in successfully
+        "retry"         → credential error but network healthy, worth retrying
+        "stop"          → hard failure, don't retry (email checkpoint, 2FA fail, etc)
     """
-
     try:
         human_mouse = HumanMouseBehavior(driver)
         human_typing = HumanTypingBehavior(driver)
@@ -32,51 +92,45 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
         observer.health_monitor.revive_driver("click_body")
         human_mouse.random_mouse_jitter(4)
 
-        # to see the allow cookies dialog -------------------
+        # Wait for cookies dialog / page to settle
         time.sleep(10)
 
+        # ── Detect login form type ─────────────────────────────────────────────
         try:
-            login_form_old = driver.find_elements(By.CSS_SELECTOR, "form#loginForm")
             login_form_new = driver.find_elements(By.CSS_SELECTOR, "form#login_form")
 
             if login_form_new:
                 print("🔄 New login page detected!")
-
                 username_selector = (By.NAME, "email")
                 password_selector = (By.NAME, "pass")
                 login_button_xpath = "//div[@role='button' and contains(., 'Log in')]"
-
             else:
                 print("🟦 Classic Instagram login page detected")
-
                 username_selector = (By.NAME, "username")
                 password_selector = (By.NAME, "password")
                 login_button_xpath = "//button[contains(., 'Log in')]"
 
         except Exception as e:
-            print("❌ Failed detecting login form:", e)
-            return False
+            print(f"❌ Failed detecting login form: {e}")
+            return "retry"
 
-        username_input = wait.until(
-            EC.presence_of_element_located(username_selector)
-        )
-        password_input = wait.until(
-            EC.presence_of_element_located(password_selector)
-        )
+        # ── Type credentials ───────────────────────────────────────────────────
+        try:
+            username_input = wait.until(EC.presence_of_element_located(username_selector))
+            password_input = wait.until(EC.presence_of_element_located(password_selector))
+        except TimeoutException:
+            print("❌ Login form fields not found")
+            return "retry"
 
         human_mouse.human_like_move_to_element(username_input, click=True)
-        human_typing.human_like_type(
-            username_input, text=username, typing_speed="normal")
-
+        human_typing.human_like_type(username_input, text=username, typing_speed="normal")
         time.sleep(2)
 
         human_mouse.human_like_move_to_element(password_input, click=True)
-        human_typing.human_like_type(
-            password_input, text=password, typing_speed="slow", raw_mode=True)
-
+        human_typing.human_like_type(password_input, text=password, typing_speed="slow", raw_mode=True)
         time.sleep(3)
 
-        # ✅ Check if the "Log in" button is disabled before proceeding
+        # ── Check login button isn't disabled ─────────────────────────────────
         try:
             login_button = wait.until(
                 EC.presence_of_all_elements_located((By.XPATH, login_button_xpath))
@@ -85,91 +139,128 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
                 login_button.get_attribute("disabled")
                 or login_button.get_attribute("aria-disabled") == "true"
             )
-
             if is_disabled:
-                webhook.update_account_status("wrong_login_data", {
-                    "account_id": webhook.account_id,
-                    "profile_id": webhook.profile_id,
-                    "error_type": "CREDENTIALS"
-                })
-                raise RuntimeError(
-                    "❌ Login button is disabled — invalid credentials or incomplete form")
+                print("❌ Login button is disabled — form incomplete or invalid")
+                return "retry"
 
         except TimeoutException:
             print("⚠️ Login button not found (skipping disabled check)")
 
+        # ── Submit ─────────────────────────────────────────────────────────────
         password_input.send_keys(Keys.RETURN)
 
-        # ⏳ wait briefly for potential error
         time.sleep(8)
 
-        # ── NEW: Check for email verification checkpoint ───────────────────────────
+        # ── Email verification checkpoint ──────────────────────────────────────
         if not handle_email_verification_checkpoint(driver, webhook):
-            print("🛑 Login stopped — email verification required, reported to webhook")
-            raise RuntimeError("❌ Email verification required")
+            print("🛑 Email verification required — stopping")
+            return "stop"
 
-        keywords = ["incorrect", "sorry", "double-check", "credentials"]
+        if not handle_credentials_check(
+            driver=driver,
+            webhook=webhook,
+            proxy_host=proxy_host,
+            proxy_port=proxy_port,
+            proxy_user=proxy_user,
+            proxy_pass=proxy_pass,
+        ):
+            print("🛑 Credential check failed — stopping")
+            return "retry"
 
-        # Only look inside <span> tags that might show login errors
-        xpath_cond = " or ".join(
-            f"contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{kw}')"
-            for kw in keywords
-        )
-        error_xpath = f"//span[{xpath_cond}]"
-
-        try:
-            error_elem = WebDriverWait(driver, 5).until(
-                EC.visibility_of_element_located((By.XPATH, error_xpath))
-            )
-
-            # ── Don't trust it yet — Instagram flashes errors transiently ─────
-            # If login actually succeeded, the element will be gone after a few seconds
-            print("⚠️ Potential credential error detected, waiting to confirm it's persistent...")
-            time.sleep(4)
-
-            # Re-query to avoid stale element
-            error_elems = driver.find_elements(By.XPATH, error_xpath)
-
-            if not error_elems:
-                print("ℹ️ Error text disappeared — was transient, login likely succeeded.")
-            else:
-                text = error_elems[0].text.strip().lower()
-                print(f"⚠️ Credential error confirmed (persistent): {text}")
-
-                webhook.update_account_status("wrong_login_data", {
-                    "account_id": webhook.account_id,
-                    "profile_id": webhook.profile_id,
-                    "error_type": "CREDENTIALS"
-                })
-                raise RuntimeError(f"❌ Invalid credentials detected: {text}")
-
-        except TimeoutException:
-            # No visible span with these words — normal flow
-            pass
-
-        # Handle 2FA if required
+        # ── 2FA ────────────────────────────────────────────────────────────────
         if not handle_two_factor_authentication(driver, secret_key=secret_key, webhook=webhook):
-            return False
+            return "stop"
 
         time.sleep(40)
-        print("✅ Login Script Execution done!")
-        return True
+        return "success"
 
-    except TimeoutException as e:
-        print("❌ Error during login: A timeout occurred.")
-        print(f"Details: {e}")
-        return False
-    except NoSuchElementException as e:
-        print("❌ Error during login: Could not find a required element.")
-        print(f"Details: {e}")
-        return False
 
     except RuntimeError:
         raise
 
     except Exception as e:
-        print(f"❌ Unexpected error during login: {e}")
-        return False
+        print(f"❌ Unexpected error during login attempt: {e}")
+        return "stop"
+
+
+def handle_credentials_check(
+    driver,
+    webhook: WebhookUtils,
+    proxy_host: str,
+    proxy_port: int,
+    proxy_user: str,
+    proxy_pass: str
+) -> bool:
+    """
+    Validates that no credential error is shown after login attempt.
+    
+    Retry logic:
+      - Up to MAX_CREDENTIAL_RETRIES attempts
+      - On each failure, cross-checks connectivity:
+            connectivity fail → webhook "update_session_and_restart_task" → return False
+            connectivity ok   → retry login
+      - After all retries exhausted → webhook "wrong_login_data" → return False
+      - No error found / error was transient → return True
+
+    Returns:
+        True  → credentials accepted, login can continue
+        False → unrecoverable failure, stop task
+    """
+
+    keywords = ["incorrect", "sorry", "double-check", "credentials"]
+
+    xpath_cond = " or ".join(
+            f"contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{kw}')"
+            for kw in keywords
+        )
+    error_xpath = f"//span[{xpath_cond}]"
+
+    print(f"\n🔐 Credential check")
+
+    # ── Step 1: Check if any error span is visible ────────────────────────────
+    try:
+        WebDriverWait(driver, 5).until(
+            EC.visibility_of_element_located((By.XPATH, error_xpath))
+        )
+    except TimeoutException:
+        # No error span found at all — credentials accepted
+        print("✅ No credential error detected — login proceeding")
+        return True
+
+    # ── Step 2: Error found — wait to confirm it's not transient ─────────────
+    print("⚠️ Potential credential error detected, waiting to confirm it's persistent...")
+    time.sleep(4)
+
+    error_elems = driver.find_elements(By.XPATH, error_xpath)
+    if not error_elems:
+        print("ℹ️ Error text disappeared — was transient, login likely succeeded")
+        return True
+
+    # ── Step 3: Error is persistent — cross-check connectivity ───────────────
+    error_text = error_elems[0].text.strip().lower()
+    print(f"⚠️ Persistent error confirmed: '{error_text}'")
+    print("🔎 Cross-checking connectivity before blaming credentials...")
+
+    connectivity = check_connectivity(
+        proxy_host=proxy_host,
+        proxy_port=proxy_port,
+        proxy_user=proxy_user,
+        proxy_pass=proxy_pass
+    )
+
+    # ── Step 4a: Connectivity failed — network is the culprit ─────────────────
+    if not connectivity.success:
+        print(f"🌐 Connectivity failed at [{connectivity.failed_at}]: {connectivity.failure_reason}")
+        print("📡 Sending update_session_and_restart_task webhook...")
+        webhook.update_account_status("update_session_and_restart_task", {
+            "account_id": webhook.account_id
+        })
+        raise RuntimeError(f"Connectivity failed at [{connectivity.failed_at}]: {connectivity.failure_reason}")
+
+
+    # ── Step 5: All retries exhausted + connectivity healthy = real bad creds ──
+    print(f"❌ Credential error persisted across with healthy network")
+    return False
 
 
 def handle_email_verification_checkpoint(driver, webhook:WebhookUtils) -> bool:
