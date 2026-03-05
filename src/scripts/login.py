@@ -95,6 +95,19 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
         # Wait for cookies dialog / page to settle
         time.sleep(10)
 
+        # ── Check for "Use another profile" button ────────────────────────────────
+        try:
+            use_another_profile_xpath = "//div[@role='none'][.//span[contains(., 'Use') and contains(., 'another') and contains(., 'profile')]]"
+            use_another_btn = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, use_another_profile_xpath))
+            )
+            print("👤 'Use another profile' button detected — clicking it...")
+            human_mouse.human_like_move_to_element(use_another_btn, click=True)
+            time.sleep(3)
+            print("✅ Clicked 'Use another profile'")
+        except TimeoutException:
+            print("ℹ️ No 'Use another profile' button — proceeding normally")
+
         # ── Detect login form type ─────────────────────────────────────────────
         try:
             login_form_new = driver.find_elements(By.CSS_SELECTOR, "form#login_form")
