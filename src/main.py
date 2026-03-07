@@ -388,6 +388,12 @@ class MainExecutor:
             # Check login -----------------
             if self.check_login_status():
                 self.logger.info("Already logged in, skipping login process")
+                if self.task_type == "LOGIN":
+                    self.webhook.update_account_status("login_completed", {
+                        "account_id": self.webhook.account_id,
+                        "profile_id": self.profile_id,
+                        "cookies": self.cookies
+                    })
 
             else:
                 if self.task_type == "LOGIN":
