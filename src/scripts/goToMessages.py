@@ -131,7 +131,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
                         # wait for 10 seconds for reply check and if replied then send the webhook as replied
                         time.sleep(10)
-                        replied = check_for_reply(driver, username, observer)
+                        replied = check_for_reply(driver, username, observer, messages[-1][0:20])
 
                         if replied:
                             webhook.update_campaign_status("sent_dm", {
@@ -149,7 +149,8 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                             f"❌ Failed to send message to @{username}")
 
                 else:
-                    replied = check_for_reply(driver, username, observer)
+                    prevmsg = message.get("prevText")
+                    replied = check_for_reply(driver, username, observer, prevmsg)
                     time.sleep(3)
 
                     # user has replied do not followup -------
@@ -598,7 +599,7 @@ def check_for_unread_at_top_of_chat(driver, username, observer: ScreenObserver):
         return False
 
 
-def check_for_reply(driver, username, observer: ScreenObserver):
+def check_for_reply(driver, username,  observer: ScreenObserver, prev_text=None):
     """
     Check if user has replied in DM.
 
@@ -631,12 +632,19 @@ def check_for_reply(driver, username, observer: ScreenObserver):
                 print(f"✅ @{username} has already replied.")
                 return True
 
+        reply_check_xpath = ''
+
+        if prev_text is not None:
+            reply_check_xpath = f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]] and preceding::div[@role="none"][.//span[@dir="auto" and contains(.,"{prev_text}")]]] //span[@dir="auto"]'
+        else:
+            reply_check_xpath = f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]]] //span[@dir="auto"]'
+
         # check by new method ---------------------
         message_spans = driver.find_elements(
             By.XPATH,
-            f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]] and not(following::div[@role="none"])] //span[@dir="auto"]'
+            reply_check_xpath
         )
-
+        
         if message_spans:
             print(f"✅ @{username} has already replied.")
             return True
