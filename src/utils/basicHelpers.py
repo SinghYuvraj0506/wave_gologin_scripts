@@ -308,3 +308,45 @@ def heartbeat_loop(worker_id, stop_event, webhook: WebhookUtils):
         })
 
         time.sleep(Config.HEARTBEAT_INTERVAL)
+
+def find_ascii_substring(text: str, data: dict) -> str | None:
+    """
+    Finds a stable 3–10 char printable ASCII substring from a raw message template.
+
+    Strategy:
+      1. Strip spintax blocks entirely ({{ opt1|opt2|opt3 }} → removed)
+         Spintax is unpredictable post-send, so we can't use it for matching.
+      2. Resolve dynamic variables ({{ user.name }} → actual value)
+         Variables are stable per-user, safe to include.
+      3. Find the first 3–10 char run of printable ASCII (no unicode, no \n \t).
+    """
+
+    TEMPLATE_PATTERN = re.compile(r"\{\{\s*(.*?)\s*\}\}", re.DOTALL)
+
+    def resolve(inner: str) -> str:
+        # Spintax → strip entirely (return empty string, not a choice)
+        if "|" in inner:
+            return ""
+
+        # Dynamic variable → resolve from data
+        keys = inner.split(".")
+        val = data
+        for k in keys:
+            if isinstance(val, dict) and k in val:
+                val = val[k]
+            else:
+                return ""  # missing var → empty, not original token
+        return str(val)
+
+    # Step 1 & 2: resolve template (spintax → "", vars → value)
+    resolved = TEMPLATE_PATTERN.sub(lambda m: resolve(m.group(1)), text)
+
+    # Step 3: clean up leftover spacing artifacts from stripped spintax
+    resolved = re.sub(r"[ \t]{2,}", " ", resolved)  # collapse multi-spaces
+    resolved = re.sub(r"\s+,", ",", resolved)        # fix "hello , world"
+    resolved = "\n".join(line.rstrip() for line in resolved.split("\n"))
+
+    # Step 4: find first run of 3–10 printable ASCII chars (0x20–0x7E, no \n \t)
+    match = re.search(r"[\x20-\x7E]{3,10}", resolved)
+    return match.group() if match else None
+

@@ -10,6 +10,7 @@ from utils.scrapping.BasicUtils import BasicUtils
 from selenium.webdriver.common.keys import Keys
 from utils.scrapping.ScreenObserver import ScreenObserver
 from utils.WebhookUtils import WebhookUtils
+from utils.basicHelpers import find_ascii_substring
 from scripts.exploreReel import explore_reels_randomly
 from scripts.browseExplore import browse_explore_page
 import unicodedata
@@ -131,7 +132,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
                         # wait for 10 seconds for reply check and if replied then send the webhook as replied
                         time.sleep(10)
-                        replied = check_for_reply(driver, username, observer, messages[-1][0:20])
+                        replied = check_for_reply(driver, username, observer, find_ascii_substring(messages[-1]))
 
                         if replied:
                             webhook.update_campaign_status("sent_dm", {
@@ -546,59 +547,6 @@ def check_if_existing_messages_are_present(driver,username:str, observer: Screen
         return False
 
 
-def check_for_unread_at_top_of_chat(driver, username, observer: ScreenObserver):
-    """
-    Check for unread chats at the top of chat
-
-    Args:
-        driver: Selenium WebDriver instance
-        observer: ScreenObserver instance
-
-    """
-    try:
-        # Wait for chat elements to load
-        observer.health_monitor.revive_driver("click_body")
-        time.sleep(3)
-
-        # ---------- Old method ----------
-        unread_containers = driver.find_elements(
-            By.XPATH,
-            '//span[@data-visualcompletion="ignore" and contains(., "Unread")] /ancestor::div[@role="button" and @tabindex="0"]'
-        )
-
-        chat_containers = driver.find_elements(
-            By.CSS_SELECTOR,
-            'div[data-virtualized="false"]'
-        )
-
-        if chat_containers:
-            last_elem = chat_containers[-1]
-            anchors = last_elem.find_elements(
-                By.CSS_SELECTOR,
-                f'a[href*="/{username}"]'
-            )
-            if anchors:
-                print(f"✅ @{username} has already replied. Skipping followup.")
-                return True
-
-        # check by new method ---------------------
-        message_spans = driver.find_elements(
-            By.XPATH,
-            f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]] and not(following::div[@role="none"])] //span[@dir="auto"]'
-        )
-
-        if message_spans:
-            print(f"✅ @{username} has already replied. Skipping followup.")
-            return True
-
-        print(f"ℹ️ @{username} has not replied. Sending followup...")
-        return False
-
-    except Exception as e:
-        print(f"❌ Error in followup check/send for @{username}: {str(e)}")
-        return False
-
-
 def check_for_reply(driver, username,  observer: ScreenObserver, prev_text=None):
     """
     Check if user has replied in DM.
@@ -635,6 +583,12 @@ def check_for_reply(driver, username,  observer: ScreenObserver, prev_text=None)
         reply_check_xpath = ''
 
         if prev_text is not None:
+            found = scroll_until_prev_text_visible(driver, prev_text)
+            if not found:
+                scroll_to_bottom_message_container(driver)  # ← restore position before fallback
+                prev_text = None
+
+        if prev_text is not None:
             reply_check_xpath = f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]] and preceding::div[@role="none"][.//span[@dir="auto" and contains(.,"{prev_text}")]]] //span[@dir="auto"]'
         else:
             reply_check_xpath = f'//div[@role="none" and ../../preceding-sibling::*[.//a[@role="link" and contains(@href,"/{username}")]]] //span[@dir="auto"]'
@@ -656,6 +610,68 @@ def check_for_reply(driver, username,  observer: ScreenObserver, prev_text=None)
         print(f"❌ Error in reply check for @{username}: {str(e)}")
         return False
 
+
+def scroll_until_prev_text_visible(driver, prev_text: str, max_scrolls: int = 15) -> bool:
+    """
+    Scrolls up incrementally in small steps until prev_text appears in DOM,
+    then scrolls the element into view centered in the viewport.
+    """
+    SCROLL_CONTAINER_XPATH = '//div[@data-pagelet="IGDMessagesList"]/div'
+
+    try:
+        container = driver.find_element(By.XPATH, SCROLL_CONTAINER_XPATH)
+    except Exception:
+        print("❌ Could not find DM scroll container")
+        return False
+
+    # check if already in DOM before scrolling at all
+    matches = driver.find_elements(
+        By.XPATH,
+        f'//span[@dir="auto" and contains(.,"{prev_text}")]'
+    )
+    if matches:
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+            matches[0]
+        )
+        time.sleep(0.4)
+        return True
+
+    for attempt in range(max_scrolls):
+        driver.execute_script(
+            "arguments[0].scrollTop -= 300;",
+            container
+        )
+        time.sleep(0.8)  # wait for instagram to lazy-load newly visible messages
+
+        matches = driver.find_elements(
+            By.XPATH,
+            f'//span[@dir="auto" and contains(.,"{prev_text}")]'
+        )
+        if matches:
+            print(f"Found prev_text '{prev_text}' after {attempt + 1} scroll(s)")
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+                matches[0]
+            )
+            time.sleep(0.4)
+            return True
+
+    print(f"⚠️ prev_text '{prev_text}' not found after {max_scrolls} scrolls, falling back")
+    return False
+
+def scroll_to_bottom_message_container(driver) -> None:
+    """Scrolls the DM container back to the bottom (most recent messages)."""
+    SCROLL_CONTAINER_XPATH = '//div[@data-pagelet="IGDMessagesList"]/div'
+    try:
+        container = driver.find_element(By.XPATH, SCROLL_CONTAINER_XPATH)
+        driver.execute_script(
+            "arguments[0].scrollTop = arguments[0].scrollHeight;",
+            container
+        )
+        time.sleep(0.4)  # let it settle
+    except Exception:
+        logging.warning("Could not scroll DM container to bottom")
 
 def message_users_from_list(driver, usernames_list, message_text, delay_range=(30, 60)):
     """
@@ -716,5 +732,4 @@ def random_warmup(driver, observer: ScreenObserver):
 
     except Exception as e:
         print("❌ Found error in warming up")
-
 
