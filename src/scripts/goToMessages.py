@@ -132,7 +132,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
                         # wait for 10 seconds for reply check and if replied then send the webhook as replied
                         time.sleep(10)
-                        replied = check_for_reply(driver, username, observer, find_ascii_substring(messages[-1]))
+                        replied = check_for_reply(driver, username, observer, find_ascii_substring(messages[-1],{}))
 
                         if replied:
                             webhook.update_campaign_status("sent_dm", {
