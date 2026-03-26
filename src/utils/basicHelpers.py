@@ -4,6 +4,7 @@ from config import Config
 import requests
 import time
 import socket
+import re
 
 def wait_for_network_ready(max_wait: int = 30) -> bool:
     """
