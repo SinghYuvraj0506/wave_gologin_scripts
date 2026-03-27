@@ -38,6 +38,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     failed_users = []
 
     observer.health_monitor.revive_driver("click_body")
+    observer.reduce_bandwidth_for_driver(enable=True)
     time.sleep(2)
 
     basicUtils.click_anchor_by_href("/direct/inbox/")
@@ -221,6 +222,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     if failed_users:
         print(f"❌ Failed users: {', '.join(failed_users)}")
 
+    observer.reduce_bandwidth_for_driver(enable=False)
     return successful_fresh_dms, successful_messages, failed_users
 
 

@@ -470,31 +470,65 @@ class ScreenObserver:
         
     def reduce_bandwidth_for_driver(self, enable=True):
         """
-        Toggle bandwidth-saving mode by blocking or unblocking heavy resources (images, videos, fonts).
+        Toggle bandwidth-saving mode by blocking or unblocking heavy resources.
         
         Args:
-            driver: Selenium WebDriver instance
-            enable (bool): True = block heavy resources, False = unblock (restore normal behavior)
+            enable (bool): True = block heavy resources, False = restore normal behavior
         """
         try:
-            # Always enable Network domain first
             self.driver.execute_cdp_cmd("Network.enable", {})
 
             if enable:
                 blocked_urls = [
-                    "*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.avif",
-                    "*.mp4", "*.m3u8", "*.webm",
-                    "*.svg", "*.ico",
-                    "*.woff", "*.woff2", "*.ttf", "*.otf"
+                    # ✅ FIX: Use URL substrings not globs for CDP
+                    # Image formats
+                    ".jpg", ".jpeg", ".png", ".webp", 
+                    ".gif", ".avif", ".svg", ".ico",
+                    
+                    # Video formats
+                    ".mp4", ".m3u8", ".webm", ".ts",
+                    
+                    # Font formats
+                    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+
+                    # ✅ NEW: Block Instagram/Facebook CDN domains directly
+                    # These are your biggest proxy bandwidth consumers
+                    "cdninstagram.com",
+                    "fbcdn.net",
+                    "scontent",
+
+                    # ✅ NEW: Block tracking & analytics
+                    "google-analytics.com",
+                    "googletagmanager.com",
+                    "doubleclick.net",
+                    "facebook.com/tr",          # FB pixel tracker
+                    "instagram.com/logging",    # IG internal logging
+                    "instagram.com/ajax/bz",    # IG analytics
                 ]
-                self.driver.execute_cdp_cmd("Network.setBlockedURLs", {"urls": blocked_urls})
-                self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
-                print("🚫 Bandwidth saver enabled (images/videos/fonts blocked).")
+
+                self.driver.execute_cdp_cmd(
+                    "Network.setBlockedURLs", 
+                    {"urls": blocked_urls}
+                )
+
+                # ✅ FIX: Keep cache ENABLED to save bandwidth (don't re-download)
+                self.driver.execute_cdp_cmd(
+                    "Network.setCacheDisabled", 
+                    {"cacheDisabled": False}
+                )
+
+                print("🚫 Bandwidth saver ON — images/videos/fonts/CDN blocked.")
+
             else:
-                # Passing empty list removes the block
-                self.driver.execute_cdp_cmd("Network.setBlockedURLs", {"urls": []})
-                self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": False})
-                print("✅ Bandwidth saver disabled (all resources allowed).")
+                self.driver.execute_cdp_cmd(
+                    "Network.setBlockedURLs", 
+                    {"urls": []}
+                )
+                self.driver.execute_cdp_cmd(
+                    "Network.setCacheDisabled", 
+                    {"cacheDisabled": False}
+                )
+                print("✅ Bandwidth saver OFF — all resources allowed.")
 
             return True
 

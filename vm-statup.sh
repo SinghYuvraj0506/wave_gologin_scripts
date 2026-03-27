@@ -82,6 +82,9 @@ echo "✅ Network fully initialized, starting application..."
 # Run your main script
 python3 src/index.py
 
+
+SAVE_LOGS = "true"
+
 # Conditional log upload
 if [[ "${SAVE_LOGS,,}" == "true" ]]; then
     BUCKET_NAME="wave-tasks-logs"
