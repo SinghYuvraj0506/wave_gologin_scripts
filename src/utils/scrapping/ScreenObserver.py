@@ -470,67 +470,31 @@ class ScreenObserver:
         
     def reduce_bandwidth_for_driver(self, enable=True):
         """
-        Toggle bandwidth-saving mode by blocking or unblocking heavy resources.
+        Toggle bandwidth-saving mode by blocking or unblocking heavy resources (images, videos, fonts).
         
         Args:
-            enable (bool): True = block heavy resources, False = restore normal behavior
+            driver: Selenium WebDriver instance
+            enable (bool): True = block heavy resources, False = unblock (restore normal behavior)
         """
         try:
+            # Always enable Network domain first
             self.driver.execute_cdp_cmd("Network.enable", {})
 
             if enable:
                 blocked_urls = [
-                    # Image formats - safe to block (CDN media)
-                    ".jpg", ".jpeg", ".png", ".webp",
-                    ".gif", ".avif",
-
-                    # Video formats - safe to block
-                    ".mp4", ".m3u8", ".webm", ".ts",
-
-                    # Font formats - safe to block
-                    ".woff", ".woff2", ".ttf", ".otf", ".eot",
-
-                    # ✅ REMOVED .svg and .ico — Instagram uses these for UI icons
-                    # ".svg",   ← DON'T BLOCK
-                    # ".ico",   ← DON'T BLOCK
-
-                    # CDN domains - safe to block (only media content)
-                    "cdninstagram.com",
-                    "fbcdn.net",
-                    "scontent",
-
-                    # Tracking & analytics - safe to block
-                    "google-analytics.com",
-                    "googletagmanager.com",
-                    "doubleclick.net",
-                    "facebook.com/tr",
-                    "instagram.com/logging",
-                    "instagram.com/ajax/bz",
+                    "*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.avif",
+                    "*.mp4", "*.m3u8", "*.webm",
+                    "*.svg", "*.ico",
+                    "*.woff", "*.woff2", "*.ttf", "*.otf"
                 ]
-
-                self.driver.execute_cdp_cmd(
-                    "Network.setBlockedURLs", 
-                    {"urls": blocked_urls}
-                )
-
-                # ✅ FIX: Keep cache ENABLED to save bandwidth (don't re-download)
-                self.driver.execute_cdp_cmd(
-                    "Network.setCacheDisabled", 
-                    {"cacheDisabled": False}
-                )
-
-                print("🚫 Bandwidth saver ON — images/videos/fonts/CDN blocked.")
-
+                self.driver.execute_cdp_cmd("Network.setBlockedURLs", {"urls": blocked_urls})
+                self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
+                print("🚫 Bandwidth saver enabled (images/videos/fonts blocked).")
             else:
-                self.driver.execute_cdp_cmd(
-                    "Network.setBlockedURLs", 
-                    {"urls": []}
-                )
-                self.driver.execute_cdp_cmd(
-                    "Network.setCacheDisabled", 
-                    {"cacheDisabled": False}
-                )
-                print("✅ Bandwidth saver OFF — all resources allowed.")
+                # Passing empty list removes the block
+                self.driver.execute_cdp_cmd("Network.setBlockedURLs", {"urls": []})
+                self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": False})
+                print("✅ Bandwidth saver disabled (all resources allowed).")
 
             return True
 
