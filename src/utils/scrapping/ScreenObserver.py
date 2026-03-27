@@ -480,30 +480,32 @@ class ScreenObserver:
 
             if enable:
                 blocked_urls = [
-                    # ✅ FIX: Use URL substrings not globs for CDP
-                    # Image formats
-                    ".jpg", ".jpeg", ".png", ".webp", 
-                    ".gif", ".avif", ".svg", ".ico",
-                    
-                    # Video formats
+                    # Image formats - safe to block (CDN media)
+                    ".jpg", ".jpeg", ".png", ".webp",
+                    ".gif", ".avif",
+
+                    # Video formats - safe to block
                     ".mp4", ".m3u8", ".webm", ".ts",
-                    
-                    # Font formats
+
+                    # Font formats - safe to block
                     ".woff", ".woff2", ".ttf", ".otf", ".eot",
 
-                    # ✅ NEW: Block Instagram/Facebook CDN domains directly
-                    # These are your biggest proxy bandwidth consumers
+                    # ✅ REMOVED .svg and .ico — Instagram uses these for UI icons
+                    # ".svg",   ← DON'T BLOCK
+                    # ".ico",   ← DON'T BLOCK
+
+                    # CDN domains - safe to block (only media content)
                     "cdninstagram.com",
                     "fbcdn.net",
                     "scontent",
 
-                    # ✅ NEW: Block tracking & analytics
+                    # Tracking & analytics - safe to block
                     "google-analytics.com",
                     "googletagmanager.com",
                     "doubleclick.net",
-                    "facebook.com/tr",          # FB pixel tracker
-                    "instagram.com/logging",    # IG internal logging
-                    "instagram.com/ajax/bz",    # IG analytics
+                    "facebook.com/tr",
+                    "instagram.com/logging",
+                    "instagram.com/ajax/bz",
                 ]
 
                 self.driver.execute_cdp_cmd(
