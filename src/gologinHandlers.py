@@ -30,44 +30,54 @@ class GologinHandler:
         params = {
             'token': token,
             'extra_params': [
-                # '--headless=new',
+                # CORE
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-blink-features=AutomationControlled",
                 "--window-size=1920,1080",
-                "--disable-gpu"
+                "--disable-gpu",                          # ← comma fixed
 
-                # # VULKAN-SPECIFIC FIXES
-                '--disable-vulkan',
-                '--disable-vulkan-surface',
-                '--disable-vulkan-fallback-to-gl-for-testing',
-                '--use-vulkan=disabled',
-                '--disable-features=Vulkan'
+                # VULKAN FIXES
+                "--disable-vulkan",                       # ← comma fixed
+                "--disable-vulkan-surface",
+                "--disable-vulkan-fallback-to-gl-for-testing",
+                "--use-vulkan=disabled",
+                "--disable-features=Vulkan",
 
                 # FORCE SOFTWARE RENDERING
-                '--use-gl=disabled',
-                '--disable-accelerated-2d-canvas',
-                '--disable-accelerated-video-decode',
-                '--disable-software-rasterizer',
-                '--disable-gpu-rasterization',
-                '--disable-gpu-memory-buffer-video-frames',
+                "--use-gl=disabled",                      # ← comma fixed
+                "--disable-accelerated-2d-canvas",
+                "--disable-accelerated-video-decode",
+                "--disable-software-rasterizer",
+                "--disable-gpu-rasterization",
+                "--disable-gpu-memory-buffer-video-frames",
 
-                # DISABLE PROBLEMATIC FEATURES
-                '--disable-features=VizDisplayCompositor,Vulkan,UseSkiaRenderer,WebGL,WebGL2',
-                '--disable-3d-apis',
-                '--disable-webgl',
-                '--disable-webgl2',
+                # DISABLE WEBGL & 3D
+                "--disable-features=VizDisplayCompositor,Vulkan,UseSkiaRenderer,WebGL,WebGL2",  # ← comma fixed
+                "--disable-3d-apis",
+                "--disable-webgl",
+                "--disable-webgl2",
 
-                # YOUR EXISTING FLAGS
-                '--disable-background-timer-throttling',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding',
-                '--disable-blink-features=AutomationControlled',
-                '--window-size=1920,1080'
+                # BACKGROUND THROTTLING
+                "--disable-background-timer-throttling",  # ← comma fixed
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
 
                 # CONNECTION STABILITY
-                '--max_old_space_size=2048',
-                '--disable-extensions-http-throttling'
+                "--max_old_space_size=2048",              # ← comma fixed
+                "--disable-extensions-http-throttling",
+
+                # ✅ NEW: BLOCK GOOGLE UPDATE/TELEMETRY (saves proxy bandwidth)
+                "--disable-background-networking",
+                "--disable-component-update",
+                "--disable-sync",
+                "--no-first-run",
+                "--disable-default-apps",
+                "--disable-domain-reliability",
+                "--disable-breakpad",
+                "--no-pings",
+                "--disable-client-side-phishing-detection",
+                "--disable-hang-monitor",
             ]
         }
 

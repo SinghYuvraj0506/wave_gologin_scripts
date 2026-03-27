@@ -49,6 +49,33 @@ echo "✅ Internet ready"
 echo "⏳ Grace period (5s)..."
 sleep 5
 
+# ============================================================
+# BLOCK GOOGLE CDN DOMAINS (saves proxy bandwidth)
+# These are Chrome/Orbita update & telemetry domains that
+# route through residential proxy — not needed for scraping
+# ============================================================
+echo "🛡️ Blocking Google CDN/update domains to save proxy bandwidth..."
+
+BLOCKED_DOMAINS=(
+    "edgedl.me.gvt1.com"
+    "dl.google.com"
+    "update.googleapis.com"
+    "clients2.google.com"
+    "clients.google.com"
+    "optimizationguide-pa.googleapis.com"
+    "r7---sn-ni5f-tfbl.gvt1.com"   # seen in your proxy logs
+)
+
+for domain in "${BLOCKED_DOMAINS[@]}"; do
+    echo "0.0.0.0 $domain" >> /etc/hosts
+    echo "   ✅ Blocked: $domain"
+done
+
+echo "✅ Domain blocking complete. Current /etc/hosts entries:"
+grep "0.0.0.0" /etc/hosts
+
+# ============================================================
+
 echo "✅ Network fully initialized, starting application..."
 
 # Run your main script
