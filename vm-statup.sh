@@ -63,9 +63,10 @@ BLOCKED_DOMAINS=(
     "clients2.google.com"
     "clients.google.com"
     "optimizationguide-pa.googleapis.com"
-    "r7---sn-ni5f-tfbl.gvt1.com"   # seen in your proxy logs
+    "r7---sn-ni5f-tfbl.gvt1.com"
 )
 
+echo "# Block Google CDN/update domains - saves proxy bandwidth" >> /etc/hosts
 for domain in "${BLOCKED_DOMAINS[@]}"; do
     echo "0.0.0.0 $domain" >> /etc/hosts
     echo "   ✅ Blocked: $domain"
