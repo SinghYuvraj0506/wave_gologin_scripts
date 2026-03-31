@@ -18,7 +18,7 @@ export PROXY_PROVIDER=$(curl -s -H "Metadata-Flavor: Google" http://metadata.goo
 export WEBHOOK_URL=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/WEBHOOK_URL)
 export WEBHOOK_SECRET=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/WEBHOOK_SECRET)
 export HEARTBEAT_INTERVAL=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/HEARTBEAT_INTERVAL)
-export SAVE_LOGS = "true"
+export SAVE_LOGS="true"
 
 # Setup
 cd /app

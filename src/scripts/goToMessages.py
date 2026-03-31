@@ -478,9 +478,9 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
 
                     elif reason == "failed_svg":
                         # Emergency — Instagram explicitly rejected it, stop immediately
-                        webhook.update_campaign_status("failed_dm_flag_by_instagram", {
-                            "campaign_id": webhook.attributes.get("campaign_id", None)
-                        })
+                        # webhook.update_campaign_status("failed_dm_flag_by_instagram", {
+                        #     "campaign_id": webhook.attributes.get("campaign_id", None)
+                        # })
                         return False
 
                     else:
