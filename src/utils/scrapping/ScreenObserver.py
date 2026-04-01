@@ -1,3 +1,4 @@
+from utils.scrapping.BandwidthManager import BandwidthManager
 import time
 import threading
 import logging
@@ -17,7 +18,7 @@ class ScreenObserver:
     with automatic handling capabilities for Instagram
     """
 
-    def __init__(self, driver, callback_function=None, log_level=logging.INFO):
+    def __init__(self, driver, bandwithManager:BandwidthManager, callback_function=None, log_level=logging.INFO):
         self.driver = driver
         self.callback_function = callback_function
         self.current_url = ""
@@ -25,7 +26,8 @@ class ScreenObserver:
         self.monitor_thread = None
         self.check_interval = 10
         self.human_mouse = HumanMouseBehavior(driver)
-        self.health_monitor = DriverHealthMonitor(driver)
+        self.health_monitor = DriverHealthMonitor(driver, bandwithManager)
+        self.bandwithManager = bandwithManager
 
         # Setup logging
         logging.basicConfig(
@@ -47,8 +49,7 @@ class ScreenObserver:
             'rate_limit': [
                 "//div[contains(text(), 'Try again later')]",
                 "//div[contains(text(), 'Please wait')]",
-                "//div[contains(text(), 'temporary')]",
-                "//div[contains(text(), 'blocked')]"
+                "//div[contains(text(), 'limit')]"
             ],
             'captcha': [
                 "//div[contains(text(), 'security check')]",
@@ -295,8 +296,10 @@ class ScreenObserver:
             time.sleep(60)  # Wait 1 minute
 
             # Try to refresh the page
+            self.bandwithManager.disable()
             self.driver.refresh()
             time.sleep(3)
+            self.bandwithManager.enable()
 
             return True
 

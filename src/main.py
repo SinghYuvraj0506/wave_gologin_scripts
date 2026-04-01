@@ -1,3 +1,4 @@
+from utils.scrapping.BandwidthManager import BandwidthManager
 from utils.scrapping.ScreenObserver import ScreenObserver
 import time
 from scripts.login import insta_login
@@ -26,6 +27,7 @@ class MainExecutor:
         self.logged_in = False
         self.gologin = None
         self.observer = None
+        self.bandwithManager = None
         self.initialized = False
         self.cookies = None
         self.webhook = webhook
@@ -74,10 +76,14 @@ class MainExecutor:
             self.driver = self.gologin.driver
 
             # Start screen observer
+            self.bandwithManager = BandwidthManager(self.driver)
+
             self.observer = ScreenObserver(
-                self.driver, callback_function=self.observer_callback_handler)
+                self.driver, callback_function=self.observer_callback_handler, bandwithManager=self.bandwithManager)
             self.observer.start_monitoring()
 
+            self.bandwithManager.enable()
+            
             # Force initial revival
             self.observer.health_monitor.revive_driver("scroll")
 
@@ -101,7 +107,14 @@ class MainExecutor:
             self.driver.set_page_load_timeout(20)  # Shorter timeout
 
             try:
+                if self.bandwithManager:
+                    self.bandwithManager.disable()
+
                 self.driver.get("https://www.instagram.com/")
+
+                if self.bandwithManager:
+                    self.bandwithManager.enable()
+
             except Exception as e:
                 if "timeout" in str(e).lower():
                     print("⚠️ Page load timeout - attempting recovery")
@@ -304,6 +317,8 @@ class MainExecutor:
                                             webhook=self.webhook)
 
             elif (self.task_type == "WARMUP"):
+                if self.bandwithManager:
+                    self.bandwithManager.disable()
                 # warmup_type = self.webhook.attributes.get("warmup_type", 1)
 
                 browse_explore_page(self.driver, self.observer)
@@ -322,6 +337,9 @@ class MainExecutor:
 
                 print("🏠 Returning to Instagram home page.")
                 self.driver.get("https://www.instagram.com/")
+
+                if self.bandwithManager:
+                    self.bandwithManager.enable()
 
             elif (self.task_type == "START_CAMPAIGNING"):
                 retry_count = 1
@@ -463,6 +481,7 @@ class MainExecutor:
                     self.logger.error(
                         f"Failed to save cookies during cleanup: {e}")
 
+
             # Stop observer
             if self.observer:
                 try:
@@ -470,6 +489,9 @@ class MainExecutor:
                     self.logger.info("✅ Observer stopped")
                 except Exception as e:
                     self.logger.error(f"Error stopping observer: {e}")
+
+            if self.bandwithManager:
+                self.bandwithManager.disable()
 
             # Stop GoLogin session
             if self.gologin:

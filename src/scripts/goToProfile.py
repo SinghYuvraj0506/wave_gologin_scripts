@@ -54,6 +54,10 @@ def goto_profile_and_save_image (driver, observer: ScreenObserver, username:str,
 
     except TimeoutException:
         print("❌ Timeout: Profile image did not load.")
-        driver.get("https://www.instagram.com/")
+        try:
+            basicUtils.click_anchor_by_href(f"https://www.instagram.com")
+        except Exception as e:
+            print("Error returning to home page", str(e))
+            driver.get("https://www.instagram.com/")
         return
 

@@ -1,13 +1,15 @@
+from utils.scrapping.BandwidthManager import BandwidthManager
 import time
 import random
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
 class DriverHealthMonitor:
-    def __init__(self, driver):
+    def __init__(self, driver, bandwithManager:BandwidthManager):
         self.driver = driver
         self.last_health_check = time.time()
         self.health_check_interval = 15
         self.connection_timeout_count = 0  # Track consecutive timeouts
+        self.bandwithManager = bandwithManager
         
     def revive_driver(self, method="scroll"):
         """Revive unresponsive driver using various methods"""
@@ -30,10 +32,12 @@ class DriverHealthMonitor:
                         return self.revive_driver("click_body")
                 
             elif method == "refresh":
+                self.bandwithManager.disable()
                 current_url = self.driver.current_url
                 self.driver.set_page_load_timeout(45)  # Shorter refresh timeout
                 self.driver.refresh()
-                time.sleep(3)
+                time.sleep(4)
+                self.bandwithManager.enable()
                 
             elif method == "click_body":
                 # Safest method - just execute JS
