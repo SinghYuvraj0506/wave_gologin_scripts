@@ -1,3 +1,4 @@
+from utils.scrapping.BandwidthTracker import BandwidthTracker
 from utils.scrapping.BandwidthManager import BandwidthManager
 from utils.scrapping.ScreenObserver import ScreenObserver
 import time
@@ -30,6 +31,7 @@ class MainExecutor:
         self.gologin = None
         self.observer = None
         self.bandwithManager = None
+        self.bandwithTracker = None
         self.initialized = False
         self.cookies = None
         self.webhook = webhook
@@ -76,6 +78,8 @@ class MainExecutor:
             self.gologin.connect_gologin_session(self.bandwithManager)
             self.driver = self.gologin.driver
 
+            self.bandwithTracker = BandwidthTracker(self.driver)
+
             # Start screen observer
             self.observer = ScreenObserver(
                 self.driver, callback_function=self.observer_callback_handler, bandwithManager=self.bandwithManager)
@@ -96,6 +100,8 @@ class MainExecutor:
         try:
             if not self.driver:
                 return False
+
+            self.bandwithTracker.set_action("Checking login Function")
 
             print("Checking login status...")
 
@@ -229,6 +235,7 @@ class MainExecutor:
             # Restore original timeout
             try:
                 self.driver.set_page_load_timeout(original_timeout)
+                self.bandwithTracker.snapshot() 
             except:
                 pass
 
@@ -236,6 +243,7 @@ class MainExecutor:
         """Perform Instagram login and save cookies"""
         try:
             self.logger.info("Performing Instagram login...")
+            self.bandwithTracker.set_action("Performing Instagram login")
 
             # Perform login
             login_success = insta_login(
@@ -270,7 +278,10 @@ class MainExecutor:
         except Exception as e:
             self.logger.error(f"❌ Login process failed: {e}")
             return False
-
+        
+        finally:
+            self.bandwithTracker.snapshot()
+            
     def save_cookies(self):
         """Save current cookies to GoLogin profile"""
         try:
@@ -303,16 +314,19 @@ class MainExecutor:
             self.logger.info("Starting Instagram activities...")
 
             if (self.task_type == "LOGIN"):
+                self.bandwithTracker.set_action("Saving profile image")
                 goto_profile_and_save_image(driver=self.driver,
                                             observer=self.observer,
                                             username=self.webhook.attributes.get(
                                                 'username'),
                                             webhook=self.webhook)
+                self.bandwithTracker.snapshot()
 
             elif (self.task_type == "WARMUP"):
                 # warmup_type = self.webhook.attributes.get("warmup_type", 1)
-
+                self.bandwithTracker.set_action("Browsing explore page")
                 browse_explore_page(self.driver, self.observer)
+                self.bandwithTracker.snapshot()
                 # if (warmup_type == 1):
                 #     # explore_reels_randomly(self.driver, self.observer, count=random.randint(1,3))
                 # elif (warmup_type == 2):
@@ -327,11 +341,16 @@ class MainExecutor:
                 })
 
                 print("🏠 Returning to Instagram home page.")
+
+                self.bandwithTracker.set_action("Returning to Instagram home page")
                 self.driver.get("https://www.instagram.com/")
                 if self.bandwithManager:
                     self.bandwithManager.enable()
+                self.bandwithTracker.snapshot()
+
 
             elif (self.task_type == "START_CAMPAIGNING"):
+                self.bandwithTracker.set_action("Searching and messaging users")
                 retry_count = 1
                 messages = self.webhook.attributes.get(
                     'messages_to_send', [])
@@ -345,6 +364,7 @@ class MainExecutor:
                         messages_to_send=messages,
                         observer=self.observer,
                         webhook=self.webhook,
+                        bandwidthTracker=self.bandwithTracker,
                         send_to_new_users_only= send_to_new_users_only
                     )
 
@@ -368,7 +388,9 @@ class MainExecutor:
                     messages = extra_data
                     time.sleep(20)
                     retry_count += 1
-                    
+
+                self.bandwithTracker.snapshot()
+
             time.sleep(5)
             return True
 
@@ -493,3 +515,6 @@ class MainExecutor:
 
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}")
+        
+        finally: 
+            self.bandwithTracker.print_report()

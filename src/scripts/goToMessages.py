@@ -1,3 +1,4 @@
+from utils.scrapping.BandwidthTracker import BandwidthTracker
 import time
 import random
 from selenium.webdriver.common.by import By
@@ -18,7 +19,7 @@ import re
 MESSAGE_MAX_RETRIES = 2
 USER_MAX_RETRIES = 2
 
-def search_and_message_users(driver, messages_to_send, observer: ScreenObserver, webhook: WebhookUtils,send_to_new_users_only,  delay_between_messages=(30, 50)):
+def search_and_message_users(driver, messages_to_send, observer: ScreenObserver, webhook: WebhookUtils, bandwidthTracker: BandwidthTracker, send_to_new_users_only,  delay_between_messages=(30, 50)):
     """
     Search for usernames and send messages to them if available.
 
@@ -110,9 +111,11 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
         try:
             # Search for the username
-            if search_user(driver, username, human_mouse, human_typing, observer):
+            if search_user(driver, username, human_mouse, human_typing,bandwidthTracker, observer):
                 print(f"✅ User @{username} found!")
                 time.sleep(2)
+
+                bandwidthTracker.set_action("Sending message to user")
 
                 if message_type == "MESSAGE":
                     if (send_to_new_users_only and check_if_existing_messages_are_present(driver, username, observer)):
@@ -199,6 +202,8 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 "type": "MESSAGE",
                 "failed": True
             })
+        finally:
+            bandwidthTracker.snapshot()
 
         # Random delay between messages to avoid rate limiting
         if i < len(messages_to_send) - 1:  # Don't wait after the last user
@@ -223,7 +228,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     return successful_fresh_dms, successful_messages, failed_users
 
 
-def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_typing: HumanTypingBehavior, observer: ScreenObserver, retry_delay: float = 2.0):
+def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_typing: HumanTypingBehavior, bandwidthTracker: BandwidthTracker, observer: ScreenObserver, retry_delay: float = 2.0):
     """
     Search for a specific username on Instagram.
 
@@ -237,6 +242,7 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
         bool: True if user found, False otherwise
     """
     attempt = 0
+    bandwidthTracker.set_action("Searching for user")
     while attempt < USER_MAX_RETRIES:
         try:
             observer.health_monitor.revive_driver("click_body")
@@ -312,6 +318,7 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
                     continue
             
             if found:
+                bandwidthTracker.snapshot()
                 return True
             else:
                 print(f"⚠️ Attempt {attempt+1}: No exact match found for @{username}")
@@ -325,6 +332,7 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
         time.sleep(retry_delay)
     
     print(f"❌ Failed to find user @{username} after {USER_MAX_RETRIES} attempts")
+    bandwidthTracker.snapshot()
     return False
 
 
