@@ -80,12 +80,7 @@ class BandwidthManager:
 
             time.sleep(0.5)  # 50ms poll interval — adjust as needed
 
-
     def _inject_js_interceptor(self):
-        """
-        Inject JS to catch anything that slips past CDP.
-        Re-inject on every page navigation.
-        """
         script = """
         (function () {
             if (window.__bwInterceptorActive) return;
@@ -94,7 +89,8 @@ class BandwidthManager:
             const isTarget = (url) =>
                 typeof url === "string" && (
                     url.includes("fna.fbcdn.net") ||
-                    /scontent[^.]*\.cdninstagram\.com/.test(url)
+                    url.includes("gvt1.com") ||
+                    /scontent[^.]*\\.cdninstagram\\.com/.test(url)
                 );
 
             const emptyBlob = URL.createObjectURL(
@@ -115,6 +111,7 @@ class BandwidthManager:
             const origOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function (method, url, ...rest) {
                 this._blocked = isTarget(url);
+                this._url = url;
                 return origOpen.call(this, method, url, ...rest);
             };
             const origSend = XMLHttpRequest.prototype.send;
@@ -131,7 +128,7 @@ class BandwidthManager:
                 return origSend.apply(this, args);
             };
 
-            // Block img/video src
+            // Block img/video/source src
             const patchSrc = (proto) => {
                 const desc = Object.getOwnPropertyDescriptor(proto, "src");
                 if (!desc?.set) return;
@@ -145,15 +142,43 @@ class BandwidthManager:
             patchSrc(HTMLVideoElement.prototype);
             patchSrc(HTMLSourceElement.prototype);
 
-            // MutationObserver for dynamic DOM
+            // Block <link> tags (prefetch, preload, stylesheet from target domains)
+            const patchHref = (proto) => {
+                const desc = Object.getOwnPropertyDescriptor(proto, "href");
+                if (!desc?.set) return;
+                Object.defineProperty(proto, "href", {
+                    set(v) { desc.set.call(this, isTarget(v) ? "" : v); },
+                    get: desc.get,
+                    configurable: true
+                });
+            };
+            patchHref(HTMLLinkElement.prototype);
+
+            // MutationObserver — catches dynamically added nodes
             new MutationObserver((mutations) => {
                 for (const m of mutations) {
                     for (const node of m.addedNodes) {
                         if (node.nodeType !== 1) continue;
+
+                        // block src/srcset/poster attributes
                         ["src", "srcset", "poster"].forEach(attr => {
                             const val = node.getAttribute?.(attr);
                             if (val && isTarget(val)) node.setAttribute(attr, "");
                         });
+
+                        // block href on link tags
+                        if (node.tagName === "LINK") {
+                            const val = node.getAttribute("href");
+                            if (val && isTarget(val)) node.setAttribute("href", "");
+                        }
+
+                        // block inline style background-image
+                        if (node.style?.backgroundImage) {
+                            const match = node.style.backgroundImage.match(/url\\(["']?([^"')]+)["']?\\)/);
+                            if (match && isTarget(match[1])) {
+                                node.style.backgroundImage = "none";
+                            }
+                        }
                     }
                 }
             }).observe(document.documentElement, { childList: true, subtree: true });
@@ -163,7 +188,6 @@ class BandwidthManager:
         """
         self.driver.execute_script(script)
 
-    
     def _get_fake_headers(self, url: str) -> list:
         if ".mp4" in url or "video" in url:
             content_type = "video/mp4"
