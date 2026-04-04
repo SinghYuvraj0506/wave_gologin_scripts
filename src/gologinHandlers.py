@@ -1,3 +1,4 @@
+from utils.scrapping.BandwidthManager import BandwidthManager
 from gologin import GoLogin
 from typing import Optional, Dict, Any
 from selenium import webdriver
@@ -108,12 +109,18 @@ class GologinHandler:
             )
         
 
-    def connect_gologin_session(self):
+    def connect_gologin_session(self, bandwidthManager: BandwidthManager):
         try:
             print('📡 Starting GoLogin session...')
             debugger_address = self.gologin.start()
-            # service = Service(ChromeDriverManager(
-            #     driver_version=self.gologin.get_chromium_version()).install())
+
+            # Dynamically fetch the correct ChromeDriver for GoLogin's Chromium version
+            # chromium_version = self.gologin.get_chromium_version()
+            # print(f'🔧 GoLogin Chromium version: {chromium_version}')
+            
+            # service = Service(
+            #     ChromeDriverManager(driver_version=chromium_version).install()
+            # )
             service = Service("/usr/local/bin/chromedriver")
 
             chrome_options = webdriver.ChromeOptions()
@@ -123,10 +130,9 @@ class GologinHandler:
             print('🌐 Connecting to browser...')
             self.driver = webdriver.Chrome(
                 service=service, options=chrome_options)
-
-            # Wait for GoLogin profile to finish initializing
-            time.sleep(8)
-
+            
+            bandwidthManager.enable(self.driver)
+            time.sleep(3)
             print("✅ GoLogin session connected and ready")
 
         except Exception as e:

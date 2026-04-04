@@ -6,12 +6,14 @@ class BandwidthManager:
     This class is used to block all the media files from loading on the page.
     """
 
-    def __init__(self, driver):
-        self.driver = driver
+    def __init__(self):
         self._intercept_thread = None
         self._intercepting = False
 
-    def enable(self):
+    def enable(self, driver = None):
+        if(driver is not None):
+            self.driver = driver
+
         # Step 1 — Enable CDP domains
         self.driver.execute_cdp_cmd("Network.enable", {})
         self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
@@ -19,9 +21,8 @@ class BandwidthManager:
         # Step 2 — Enable Fetch interception for target domains
         self.driver.execute_cdp_cmd("Fetch.enable", {
             "patterns": [
-                {"urlPattern": "*fna.fbcdn.net*", "requestStage": "Request"},
-                {"urlPattern": "*fbcdn.net*.mp4*", "requestStage": "Request"},
-                {"urlPattern": "*fbcdn.net*.m3u8*", "requestStage": "Request"},
+                {"urlPattern": "*fna.fbcdn.net*","requestStage": "Request"},
+                {"urlPattern": "*scontent*.cdninstagram.com*", "requestStage": "Request"},
             ]
         })
 
@@ -94,8 +95,7 @@ class BandwidthManager:
             const isTarget = (url) =>
                 typeof url === "string" && (
                     url.includes("fna.fbcdn.net") ||
-                    (url.includes("scontent") && url.includes("cdninstagram.com")) ||
-                    url.match(/\\.mp4|m3u8|\\.webm/)
+                    /scontent[^.]*\.cdninstagram\.com/.test(url)
                 );
 
             const emptyBlob = URL.createObjectURL(

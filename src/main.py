@@ -70,19 +70,14 @@ class MainExecutor:
             self.profile_id = self.gologin.profile_id
             self.proxyConfig = self.gologin.proxyConfig
 
-            self.gologin.connect_gologin_session()
-
-            # Get driver from gologin handler
+            self.bandwithManager = BandwidthManager()
+            self.gologin.connect_gologin_session(self.bandwithManager)
             self.driver = self.gologin.driver
 
             # Start screen observer
-            self.bandwithManager = BandwidthManager(self.driver)
-
             self.observer = ScreenObserver(
                 self.driver, callback_function=self.observer_callback_handler, bandwithManager=self.bandwithManager)
             self.observer.start_monitoring()
-
-            self.bandwithManager.enable()
             
             # Force initial revival
             self.observer.health_monitor.revive_driver("scroll")
@@ -107,11 +102,7 @@ class MainExecutor:
             self.driver.set_page_load_timeout(20)  # Shorter timeout
 
             try:
-                if self.bandwithManager:
-                    self.bandwithManager.disable()
-
                 self.driver.get("https://www.instagram.com/")
-
                 if self.bandwithManager:
                     self.bandwithManager.enable()
 
@@ -317,8 +308,6 @@ class MainExecutor:
                                             webhook=self.webhook)
 
             elif (self.task_type == "WARMUP"):
-                if self.bandwithManager:
-                    self.bandwithManager.disable()
                 # warmup_type = self.webhook.attributes.get("warmup_type", 1)
 
                 browse_explore_page(self.driver, self.observer)
@@ -337,7 +326,6 @@ class MainExecutor:
 
                 print("🏠 Returning to Instagram home page.")
                 self.driver.get("https://www.instagram.com/")
-
                 if self.bandwithManager:
                     self.bandwithManager.enable()
 

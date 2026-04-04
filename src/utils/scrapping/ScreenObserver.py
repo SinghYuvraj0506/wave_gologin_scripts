@@ -296,7 +296,6 @@ class ScreenObserver:
             time.sleep(60)  # Wait 1 minute
 
             # Try to refresh the page
-            self.bandwithManager.disable()
             self.driver.refresh()
             time.sleep(3)
             self.bandwithManager.enable()

@@ -32,7 +32,6 @@ class DriverHealthMonitor:
                         return self.revive_driver("click_body")
                 
             elif method == "refresh":
-                self.bandwithManager.disable()
                 current_url = self.driver.current_url
                 self.driver.set_page_load_timeout(45)  # Shorter refresh timeout
                 self.driver.refresh()
