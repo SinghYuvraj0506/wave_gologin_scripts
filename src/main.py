@@ -427,13 +427,26 @@ class MainExecutor:
                         raise Exception(
                             "Invalid Request, Attributes not found")
 
+                    # Disable bandwidth manager during login to avoid interference
+                    if self.bandwithManager:
+                        self.bandwithManager.disable()
+                        self.logger.info("⏸️ Bandwidth manager disabled for login")
+
                     if not self.perform_login(username=username, password=password, secret_key=secret_key):
+                        # Re-enable even on failure so cleanup works normally
+                        if self.bandwithManager:
+                            self.bandwithManager.enable()
                         self.webhook.update_account_status("login_failed", {
                             "account_id": self.webhook.account_id,
                             "cookies": self.cookies,
                             "profile_id": self.profile_id
                         })
                         return True
+
+                    # Login confirmed — re-enable bandwidth manager
+                    if self.bandwithManager:
+                        self.bandwithManager.enable()
+                        self.logger.info("▶️ Bandwidth manager re-enabled after login")
 
                     self.webhook.update_account_status("login_completed", {
                         "account_id": self.webhook.account_id,

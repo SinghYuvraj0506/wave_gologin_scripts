@@ -93,7 +93,8 @@ def handle_two_factor_authentication(driver, secret_key:str, webhook:WebhookUtil
         print("✅ 2FA code submitted successfully.")
         return True
 
-    except TimeoutException:
+    except TimeoutException as e:
+        print(f"TimeoutException Details: {e}")
         # This is not an error, it simply means the 2FA page didn't appear
         print("ℹ️ 2FA not required for this session.")
         return True
