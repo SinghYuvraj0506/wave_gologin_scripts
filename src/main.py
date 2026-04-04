@@ -431,6 +431,8 @@ class MainExecutor:
                     if self.bandwithManager:
                         self.bandwithManager.disable()
                         self.logger.info("⏸️ Bandwidth manager disabled for login")
+                        self.driver.refresh()
+                        time.sleep(5)
 
                     if not self.perform_login(username=username, password=password, secret_key=secret_key):
                         # Re-enable even on failure so cleanup works normally
