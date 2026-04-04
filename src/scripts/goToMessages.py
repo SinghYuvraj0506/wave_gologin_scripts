@@ -261,35 +261,61 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
             human_typing.human_like_type(
                 search_input, text=username, clear_field=True)
 
-            time.sleep(2.5)
+            # Extra wait for special usernames (leading _ or containing .)
+            has_special = username.startswith('_') or '.' in username
+            time.sleep(4.0 if has_special else 2.5)
 
-            try:
             # Wait for search results to appear and find the exact user
-                observer.health_monitor.revive_driver("screenshot")
-                user_result = (By.XPATH, f"//h2[normalize-space(text())='More accounts']/following::span[text()='{username}']")
-                human_mouse.human_like_move_to_element(user_result, click=True)
-                time.sleep(2)
-                observer.health_monitor.revive_driver("refresh")
-                try:
-                    observer.health_monitor.revive_driver("click_body")
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located(
-                            (By.XPATH, f"//span[contains(text(),'{username} · Instagram')]"))
-                    )
-                    return True
-                except TimeoutException:
-                    try:
-                        observer.health_monitor.revive_driver("screenshot")
-                        WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located(
-                                (By.XPATH, f"//a[@href='/{username}/' and @role='link']"))
-                        )
-                        return True
-                    except TimeoutException:
-                        pass
+            observer.health_monitor.revive_driver("screenshot")
+            xpaths = [
+                f"//h2[normalize-space(text())='More accounts']/following::span[text()='{username}']",
+                f"//span[contains(text(),'{username}')]"
+            ]
 
-            except TimeoutException:
+            user_result = None
+
+            for xpath in xpaths:
+                try:
+                    WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.XPATH, xpath))
+                    )
+                    user_result = (By.XPATH, xpath)
+                    break
+                except TimeoutException:
+                    continue
+            
+            if user_result is None:
+                print(f"⚠️ Attempt {attempt+1}: No results found for @{username}")
+                attempt += 1
+                time.sleep(retry_delay)
+                continue
+
+            human_mouse.human_like_move_to_element(user_result, click=True)
+            time.sleep(2)
+
+            observer.health_monitor.revive_driver("refresh")
+            observer.health_monitor.revive_driver("click_body")
+            verify_xpaths = [
+                f"//span[contains(text(),'{username} · Instagram')]",
+                f"//a[@href='/{username}/' and @role='link']"
+            ]
+
+            found = False
+            for xpath in verify_xpaths:
+                try:
+                    WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.XPATH, xpath))
+                    )
+                    found = True
+                    break
+                except TimeoutException:
+                    continue
+            
+            if found:
+                return True
+            else:
                 print(f"⚠️ Attempt {attempt+1}: No exact match found for @{username}")
+                        
 
         except Exception as e:
             print(f"❌ Attempt {attempt+1}: Error searching for @{username}: {str(e)}")
