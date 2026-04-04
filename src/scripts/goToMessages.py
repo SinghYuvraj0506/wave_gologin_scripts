@@ -202,8 +202,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 "type": "MESSAGE",
                 "failed": True
             })
-        finally:
-            bandwidthTracker.snapshot()
 
         # Random delay between messages to avoid rate limiting
         if i < len(messages_to_send) - 1:  # Don't wait after the last user
@@ -318,7 +316,6 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
                     continue
             
             if found:
-                bandwidthTracker.snapshot()
                 return True
             else:
                 print(f"⚠️ Attempt {attempt+1}: No exact match found for @{username}")
@@ -332,7 +329,6 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
         time.sleep(retry_delay)
     
     print(f"❌ Failed to find user @{username} after {USER_MAX_RETRIES} attempts")
-    bandwidthTracker.snapshot()
     return False
 
 

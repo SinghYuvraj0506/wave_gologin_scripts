@@ -42,7 +42,6 @@ class BandwidthManager:
     def disable(self):
         self._intercepting = False
         try:
-            self.driver.execute_cdp_cmd("Fetch.disable", {})
             self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": False})
         except:
             pass

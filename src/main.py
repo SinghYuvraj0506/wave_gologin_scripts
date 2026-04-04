@@ -110,6 +110,7 @@ class MainExecutor:
             self.driver.set_page_load_timeout(20)  # Shorter timeout
 
             try:
+                self.bandwithTracker.set_action("Instgram home page")
                 self.driver.get("https://www.instagram.com/")
                 if self.bandwithManager:
                     self.bandwithManager.enable()
@@ -235,7 +236,6 @@ class MainExecutor:
             # Restore original timeout
             try:
                 self.driver.set_page_load_timeout(original_timeout)
-                self.bandwithTracker.snapshot() 
             except:
                 pass
 
@@ -278,9 +278,6 @@ class MainExecutor:
         except Exception as e:
             self.logger.error(f"❌ Login process failed: {e}")
             return False
-        
-        finally:
-            self.bandwithTracker.snapshot()
             
     def save_cookies(self):
         """Save current cookies to GoLogin profile"""
@@ -320,13 +317,11 @@ class MainExecutor:
                                             username=self.webhook.attributes.get(
                                                 'username'),
                                             webhook=self.webhook)
-                self.bandwithTracker.snapshot()
 
             elif (self.task_type == "WARMUP"):
                 # warmup_type = self.webhook.attributes.get("warmup_type", 1)
                 self.bandwithTracker.set_action("Browsing explore page")
                 browse_explore_page(self.driver, self.observer)
-                self.bandwithTracker.snapshot()
                 # if (warmup_type == 1):
                 #     # explore_reels_randomly(self.driver, self.observer, count=random.randint(1,3))
                 # elif (warmup_type == 2):
@@ -342,11 +337,10 @@ class MainExecutor:
 
                 print("🏠 Returning to Instagram home page.")
 
-                self.bandwithTracker.set_action("Returning to Instagram home page")
+                self.bandwithTracker.set_action("Instagram home page")
                 self.driver.get("https://www.instagram.com/")
                 if self.bandwithManager:
                     self.bandwithManager.enable()
-                self.bandwithTracker.snapshot()
 
 
             elif (self.task_type == "START_CAMPAIGNING"):
@@ -388,8 +382,6 @@ class MainExecutor:
                     messages = extra_data
                     time.sleep(20)
                     retry_count += 1
-
-                self.bandwithTracker.snapshot()
 
             time.sleep(5)
             return True
@@ -517,4 +509,5 @@ class MainExecutor:
             self.logger.error(f"Error during cleanup: {e}")
         
         finally: 
+            self.bandwithTracker.stop()
             self.bandwithTracker.print_report()
