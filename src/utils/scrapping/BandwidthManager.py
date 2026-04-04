@@ -18,21 +18,21 @@ class BandwidthManager:
         self.driver.execute_cdp_cmd("Network.enable", {})
         self.driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
 
-        # Step 2 — Enable Fetch interception for target domains
-        self.driver.execute_cdp_cmd("Fetch.enable", {
-            "patterns": [
-                {"urlPattern": "*fna.fbcdn.net*","requestStage": "Request"},
-                {"urlPattern": "*scontent*.cdninstagram.com*", "requestStage": "Request"},
-            ]
-        })
+        # # Step 2 — Enable Fetch interception for target domains
+        # self.driver.execute_cdp_cmd("Fetch.enable", {
+        #     "patterns": [
+        #         {"urlPattern": "*fna.fbcdn.net*","requestStage": "Request"},
+        #         {"urlPattern": "*scontent*.cdninstagram.com*", "requestStage": "Request"},
+        #     ]
+        # })
 
-        # Step 3 — Start background thread to fulfill paused requests
-        self._intercepting = True
-        self._intercept_thread = threading.Thread(
-            target=self._handle_paused_requests,
-            daemon=True
-        )
-        self._intercept_thread.start()
+        # # Step 3 — Start background thread to fulfill paused requests
+        # self._intercepting = True
+        # self._intercept_thread = threading.Thread(
+        #     target=self._handle_paused_requests,
+        #     daemon=True
+        # )
+        # self._intercept_thread.start()
 
         # Step 4 — Inject JS as safety net
         self._inject_js_interceptor()
@@ -79,7 +79,7 @@ class BandwidthManager:
                 # Driver may not be ready yet, just keep polling
                 pass
 
-            time.sleep(0.05)  # 50ms poll interval — adjust as needed
+            time.sleep(0.5)  # 50ms poll interval — adjust as needed
 
 
     def _inject_js_interceptor(self):

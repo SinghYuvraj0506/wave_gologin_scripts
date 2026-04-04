@@ -16,6 +16,8 @@ from selenium.common.exceptions import TimeoutException
 import json
 import sys
 
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+
 class MainExecutor:
     def __init__(self, webhook: WebhookUtils):
         self.profile_id = webhook.profile_id
