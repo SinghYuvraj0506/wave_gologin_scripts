@@ -53,7 +53,7 @@ def _handle_old_2fa(driver, verification_code: str, human_mouse, human_typing, w
 
     confirm_button = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(text(), 'Confirm')]")
+            (By.XPATH, "//div[@role='button'][normalize-space(text())='Confirm']")
         )
     )
     human_mouse.human_like_move_to_element(confirm_button, click=True)
