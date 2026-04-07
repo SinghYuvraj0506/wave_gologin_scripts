@@ -43,7 +43,10 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     basicUtils.click_anchor_by_href("/direct/inbox/")
     time.sleep(5)
 
-    observer.health_monitor.revive_driver("refresh")
+     # ✅ Only refresh if the page is actually unresponsive
+    if not is_page_healthy(driver):
+        observer.health_monitor.revive_driver("refresh")
+        time.sleep(3)
 
     # Check if we're on a valid user profile
     try:
@@ -51,10 +54,13 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
             EC.url_contains("/direct/inbox")
         )
         time.sleep(5)
+
     except TimeoutException:
         try:
-            observer.health_monitor.revive_driver("refresh")
-            time.sleep(2)
+            if not is_page_healthy(driver):
+                observer.health_monitor.revive_driver("refresh")
+                time.sleep(2)
+
             observer.health_monitor.revive_driver("click_body")
             WebDriverWait(driver, 12).until(
                 EC.url_contains("/direct/inbox")
@@ -89,19 +95,25 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
             basicUtils.click_anchor_by_href("/direct/inbox/")
             time.sleep(4)
+            
+            # ✅ Only refresh if page didn't load properly
             try:
-                observer.health_monitor.revive_driver("refresh")
                 WebDriverWait(driver, 10).until(
                     EC.url_contains("/direct/inbox")
                 )
             except TimeoutException:
-                try:
+                # First real sign something is wrong — now refresh is justified
+                if not is_page_healthy(driver):
                     observer.health_monitor.revive_driver("refresh")
+
+                observer.health_monitor.revive_driver("screenshot")
+                
+                try:
                     WebDriverWait(driver, 10).until(
                         EC.url_contains("/direct/inbox")
                     )
                 except Exception as e:
-                    raise Exception("Page not clicked")
+                    raise Exception("Page not clicked") from e
 
             time.sleep(3)
 
@@ -241,6 +253,7 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
     """
     attempt = 0
     bandwidthTracker.set_action("Searching for user")
+
     while attempt < USER_MAX_RETRIES:
         try:
             observer.health_monitor.revive_driver("click_body")
@@ -253,15 +266,21 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
             except Exception:
                 pass
 
-            # Click search bar
-            observer.health_monitor.revive_driver("scroll")
-
+            # Click search bar — if it's not interactable, THEN scroll to recover
             search_input = (By.CSS_SELECTOR, "input[placeholder*='Search']")
-            human_mouse.human_like_move_to_element(search_input, click=True)
-            time.sleep(1.5)
+            try:
+                human_mouse.human_like_move_to_element(search_input, click=True)
+                WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable(search_input))
+            except (TimeoutException, Exception):
+                # ✅ Search bar not responding — now scroll revive is justified
+                observer.health_monitor.revive_driver("scroll")
+                time.sleep(1.5)
+                human_mouse.human_like_move_to_element(search_input, click=True)
+                WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable(search_input))
 
-            elem = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable(search_input))
+            time.sleep(1.5)
             human_typing.human_like_type(
                 search_input, text=username, clear_field=True)
 
@@ -270,7 +289,6 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
             time.sleep(4.0 if has_special else 2.5)
 
             # Wait for search results to appear and find the exact user
-            observer.health_monitor.revive_driver("screenshot")
             xpaths = [
                 f"//h2[normalize-space(text())='More accounts']/following::span[text()='{username}']",
                 f"//span[contains(text(),'{username}')]"
@@ -289,6 +307,21 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
                     continue
             
             if user_result is None:
+                observer.health_monitor.revive_driver("screenshot")
+                time.sleep(1.5)
+
+                # Retry search results one more time after revive
+                for xpath in xpaths:
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.XPATH, xpath))
+                        )
+                        user_result = (By.XPATH, xpath)
+                        break
+                    except TimeoutException:
+                        continue
+
+            if user_result is None:
                 print(f"⚠️ Attempt {attempt+1}: No results found for @{username}")
                 attempt += 1
                 time.sleep(retry_delay)
@@ -297,30 +330,30 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
             human_mouse.human_like_move_to_element(user_result, click=True)
             time.sleep(2)
 
-            observer.health_monitor.revive_driver("refresh")
-            observer.health_monitor.revive_driver("click_body")
-            verify_xpaths = [
-                f"//span[contains(text(),'{username} · Instagram')]",
-                f"//a[@href='/{username}/' and @role='link']"
-            ]
+            verify_conditions = EC.any_of(
+                EC.presence_of_element_located(
+                    (By.XPATH, f"//span[contains(text(),'{username} · Instagram')]")
+                ),
+                EC.presence_of_element_located(
+                    (By.XPATH, f"//a[@href='/{username}/' and @role='link']")
+                )
+            )
 
-            found = False
-            for xpath in verify_xpaths:
-                try:
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.XPATH, xpath))
-                    )
-                    found = True
-                    break
-                except TimeoutException:
-                    continue
-            
-            if found:
+            # ✅ After clicking a result, wait for navigation first —
+            try:
+                WebDriverWait(driver, 10).until(verify_conditions)
                 return True
-            else:
-                print(f"⚠️ Attempt {attempt+1}: No exact match found for @{username}")
-                        
 
+            except TimeoutException:
+                observer.health_monitor.revive_driver("refresh")
+                time.sleep(2)
+
+                try:
+                    WebDriverWait(driver, 10).until(verify_conditions)
+                    return True
+                except TimeoutException:
+                    print(f"⚠️ Attempt {attempt+1}: Profile page did not load for @{username}")
+                        
         except Exception as e:
             print(f"❌ Attempt {attempt+1}: Error searching for @{username}: {str(e)}")
 
@@ -430,13 +463,21 @@ def verify_message_sent(driver, username, message_text, observer) -> tuple[bool,
                 print(f"🚨 EMERGENCY: Failed to send icon found for @{username}")
                 return False, "failed_svg"
 
-        # ── CHECK 3: Refresh + scan chat for the message ─────────────────────
-        print("🔄 Refreshing and verifying message in chat...")
+        # ── CHECK 3: Scan chat — refresh only if message isn't already visible ──
+        print("🔍 Checking chat before deciding to refresh...")
+
+        # ✅ Message already in DOM — no refresh needed, saves full page reload
+        if is_message_sent(driver, message_text):
+            print(f"✅ Message confirmed in chat for @{username}: {message_text}")
+            return True, "found_in_chat"
+
+        # ✅ Not visible yet — now a refresh is justified to get latest state
+        print("🔄 Message not visible yet, refreshing to confirm...")
         observer.health_monitor.revive_driver("refresh")
         time.sleep(3)
 
         if is_message_sent(driver, message_text):
-            print(f"✅ Message confirmed in chat for @{username}: {message_text}")
+            print(f"✅ Message confirmed in chat after refresh for @{username}: {message_text}")
             return True, "found_in_chat"
         else:
             print(f"❌ Message NOT found in chat for @{username}: {message_text}")
@@ -482,7 +523,7 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
                         
                     except Exception as e:
                         print("♻️ Message input went stale, refreshing and retrying...")
-                        observer.health_monitor.revive_driver("refresh")
+                        observer.health_monitor.revive_driver("screenshot")
                         time.sleep(3)
 
                         message_input = WebDriverWait(driver, 10).until(
@@ -515,8 +556,7 @@ def send_message_to_user(driver, username, messages, human_mouse: HumanMouseBeha
                         retries += 1
                         if retries <= MESSAGE_MAX_RETRIES:
                             print(f"🔄 Retrying DM to @{username}... (Attempt {retries})")
-                            observer.health_monitor.revive_driver("refresh")
-                            time.sleep(5)
+                            time.sleep(2)
                         else:
                             print(f"❌ Failed to send after {MESSAGE_MAX_RETRIES} retries.")
                             return False
@@ -761,4 +801,26 @@ def random_warmup(driver, observer: ScreenObserver):
 
     except Exception as e:
         print("❌ Found error in warming up")
+
+
+def is_page_healthy(driver) -> bool:
+    """
+    Returns True if the page is responsive — no refresh needed.
+    Checks JS execution, document readyState, and URL validity.
+    """
+    try:
+        ready = driver.execute_script("return document.readyState")
+        if ready != "complete":
+            return False
+
+        current_url = driver.current_url
+        if not current_url or current_url in ("about:blank", "data:,"):
+            return False
+
+        # Quick JS ping — if this throws, the page is hung
+        driver.execute_script("return 1")
+        return True
+
+    except Exception:
+        return False
 

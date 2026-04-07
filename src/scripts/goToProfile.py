@@ -36,40 +36,35 @@ def goto_profile_and_save_image(driver, observer: ScreenObserver, username: str,
         print("✅ Profile page URL confirmed.")
 
         # Give the DOM a moment to populate (no image load needed)
-        time.sleep(3)
+        time.sleep(6)
 
         # ── Extract image src from DOM attribute (no image request needed) ─
         # The src attribute is written into the HTML by Instagram's SSR/JS
         # even when the actual image request is blocked by the browser.
         img_url = None
-        try:
-            element = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((
-                    By.XPATH,
-                    f"//img[contains(@alt, \"{username}'s profile picture\")]"
-                ))
-            )
-            img_url = element.get_attribute("src")
-        except TimeoutException:
-            # Image element not in DOM (e.g. fully blocked) — fall back to
-            # scraping the raw page source for the src URL
-            print("⚠️ Image element not found in DOM, scanning page source...")
-            page_source = driver.page_source
-            marker = f"{username}&#039;s profile picture"
-            alt_marker = f"{username}'s profile picture"
-            for src_marker in [marker, alt_marker]:
-                idx = page_source.find(src_marker)
-                if idx != -1:
-                    # Walk back to find the nearest src="..."
-                    chunk = page_source[max(0, idx - 500):idx]
-                    src_start = chunk.rfind('src="')
-                    if src_start != -1:
-                        src_end = chunk.find('"', src_start + 5)
-                        img_url = chunk[src_start + 5:src_end]
-                        break
+        elements = driver.find_elements(
+            By.XPATH,
+            f"//img[contains(@alt, \"{username}'s profile picture\")]"
+        )
 
-        if img_url:
-            print(f"🖼️ Profile image URL: {img_url}")
+        if elements:
+            src = elements[0].get_attribute("src")
+            if src and src.startswith("http"):
+                img_url = src
+                print(f"🖼️ Profile image URL: {img_url}")
+
+        else:
+            elements = driver.find_elements(
+                By.XPATH,
+                "//img[contains(@alt, 'Change profile photo')]"
+            )
+            if elements:
+                src = elements[0].get_attribute("src")
+                if src and src.startswith("http"):
+                    img_url = src
+                    print(f"🖼️ Profile image URL: {img_url}")
+
+        if img_url is not None:
             try:
                 webhook.update_account_status(
                     event="update_profile_image",
@@ -81,19 +76,8 @@ def goto_profile_and_save_image(driver, observer: ScreenObserver, username: str,
             except Exception as e:
                 print("Error sending image to server", str(e))
         else:
-            print("⚠️ Could not extract profile image URL — sending without it.")
-            # Still report success so the caller isn't blocked
-            try:
-                webhook.update_account_status(
-                    event="update_profile_image",
-                    payload={
-                        "account_id": webhook.account_id,
-                        "profile_url": None,
-                    }
-                )
-            except Exception as e:
-                print("Error sending status to server", str(e))
-
+            print("❌ Profile image not found.")
+            
     except TimeoutException:
         print("❌ Timeout: Profile page URL did not load.")
         try:
