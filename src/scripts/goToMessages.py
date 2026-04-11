@@ -265,7 +265,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                     "campaign_id": webhook.attributes.get("campaign_id", None),
                     "username": username,
                     "data": {},
-                    "type": "MESSAGE",
+                    "type": message_type,
                     "failed": True
                 })
                 print(f"❌ User @{username} not found, skipping...")
