@@ -118,10 +118,11 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
             time.sleep(3)
 
         username = message['username']
-        messages = message['messages']
+        messages = message.get('messages', None)
         message_type = message['type']
 
         try:
+            sent_message = False
             # Search for the username
             if search_user(driver, username, human_mouse, human_typing,bandwidthTracker, observer):
                 print(f"✅ User @{username} found!")
@@ -143,6 +144,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                             "type": "MESSAGE"
                         })
                         print(f"✅ Message sent to @{username}")
+                        sent_message = True
 
                         # wait for 10 seconds for reply check and if replied then send the webhook as replied
                         time.sleep(10)
@@ -155,15 +157,30 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                                 "data": {
                                     "replied": True
                                 },
-                                "type": "MESSAGE"
+                                "type": "REPLY_CHECK"
+                            })
+                        else:
+                            webhook.update_campaign_status("sent_dm", {
+                                "campaign_id": webhook.attributes.get("campaign_id", None),
+                                "username": username,
+                                "data": {
+                                    "replied": False
+                                },
+                                "type": "REPLY_CHECK"
                             })
 
 
                     else:
-                        raise Exception(
-                            f"❌ Failed to send message to @{username}")
+                        webhook.update_campaign_status("sent_dm", {
+                            "campaign_id": webhook.attributes.get("campaign_id", None),
+                            "username": username,
+                            "data": {},
+                            "type": "MESSAGE",
+                            "failed":True
+                        })
+                        print(f"❌ Failed to send message to @{username}")
 
-                else:
+                elif message_type == "FOLLOWUP":
                     prevmsg = message.get("prevText")
                     replied = check_for_reply(driver, username, observer, prevmsg)
                     time.sleep(3)
@@ -174,10 +191,9 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                             "campaign_id": webhook.attributes.get("campaign_id", None),
                             "username": username,
                             "data": {
-                                "serial": message["serial"],
                                 "replied": True
                             },
-                            "type": "FOLLOWUP"
+                            "type": "REPLY_CHECK"
                         })
 
                     else:
@@ -188,18 +204,56 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                                 "username": username,
                                 "data": {
                                     "serial": message["serial"],
-                                    "replied": False
                                 },
                                 "type": "FOLLOWUP"
                             })
+                            sent_message = True
                             print(f"✅ Followup sent to @{username}")
 
                         else:
-                            raise Exception(
-                                f"❌ Failed to send followup to @{username}")
+                            webhook.update_campaign_status("sent_dm", {
+                                "campaign_id": webhook.attributes.get("campaign_id", None),
+                                "username": username,
+                                "data": {
+                                    "serial": message["serial"],
+                                },
+                                "type": "FOLLOWUP",
+                                "failed":True
+                            })
+                            print(f"❌ Failed to send followup to @{username}")
+                    
+                elif message_type == "REPLY_CHECK":
+                    prevmsg = message.get("prevText")
+                    replied = check_for_reply(driver, username, observer, prevmsg)
+                    time.sleep(3)
+
+                    # user has replied do not followup -------    
+                    if replied:
+                        webhook.update_campaign_status("sent_dm", {
+                            "campaign_id": webhook.attributes.get("campaign_id", None),
+                            "username": username,
+                            "data": {
+                                "replied": True
+                            },
+                            "type": "REPLY_CHECK"
+                        })
+                        print(f"✅ User @{username} has replied")
+                    else:
+                        webhook.update_campaign_status("sent_dm", {
+                            "campaign_id": webhook.attributes.get("campaign_id", None),
+                            "username": username,
+                            "data": {
+                                "replied": False
+                            },
+                            "type": "REPLY_CHECK"
+                        })
+                        print(f"❌ User @{username} has not replied")
 
             else:
                 raise Exception(f"❌ User @{username} not found, skipping...")
+
+            if not sent_message:
+                failed_users.append(f"{username} (error: {str(e)})")
 
         except RuntimeError as r:
             raise
