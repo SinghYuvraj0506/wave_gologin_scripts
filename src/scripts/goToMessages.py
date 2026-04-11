@@ -122,7 +122,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
         message_type = message['type']
 
         try:
-            sent_message = False
             # Search for the username
             if search_user(driver, username, human_mouse, human_typing,bandwidthTracker, observer):
                 print(f"✅ User @{username} found!")
@@ -144,7 +143,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                             "type": "MESSAGE"
                         })
                         print(f"✅ Message sent to @{username}")
-                        sent_message = True
 
                         # wait for 10 seconds for reply check and if replied then send the webhook as replied
                         time.sleep(10)
@@ -207,7 +205,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                                 },
                                 "type": "FOLLOWUP"
                             })
-                            sent_message = True
                             print(f"✅ Followup sent to @{username}")
 
                         else:
@@ -251,9 +248,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
             else:
                 raise Exception(f"❌ User @{username} not found, skipping...")
-
-            if not sent_message:
-                failed_users.append(f"{username} (error: {str(e)})")
 
         except RuntimeError as r:
             raise
