@@ -270,6 +270,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 })
                 print(f"❌ User @{username} not found, skipping...")
 
+            already_messaged_this_session.add(username)
 
         except RuntimeError as r:
             raise
