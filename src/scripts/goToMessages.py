@@ -175,6 +175,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                             raise Exception( f"❌ Username @{username}, messaging failed")
 
                     except Exception as e:
+                        print(f"Error: {str(e)}")
                         webhook.update_campaign_status("sent_dm", {
                             "campaign_id": webhook.attributes.get("campaign_id", None),
                             "username": username,
@@ -218,6 +219,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                                 raise Exception( f"❌ Username @{username}, followup messaging failed")
 
                     except Exception as e:
+                            print(f"Error: {str(e)}")
                             webhook.update_campaign_status("sent_dm", {
                                 "campaign_id": webhook.attributes.get("campaign_id", None),
                                 "username": username,
@@ -258,6 +260,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                             })
                             print(f"❌ User @{username} has not replied")
                     except Exception as e:
+                        print(f"Error: {str(e)}")
                         pass
 
             else:
