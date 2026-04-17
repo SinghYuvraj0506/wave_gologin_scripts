@@ -147,7 +147,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 try:
                     error_banner = driver.find_element(
                         By.XPATH,
-                        '//span[@dir="auto"]//span[contains(text(), "Something isn\'t working")]'
+                        "//span[@dir='auto']//span[contains(text(), concat('Something isn', \"'\", 't working'))]"
                     )
                     if error_banner and error_banner.is_displayed():
                         print(f"⚠️ Instagram page error detected for @{username}, text: {error_banner.text}, skipping.")
