@@ -2,7 +2,7 @@ from utils.scrapping.BandwidthTracker import BandwidthTracker
 import time
 import random
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from utils.scrapping.HumanMouseBehavior import HumanMouseBehavior
@@ -140,6 +140,22 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 time.sleep(2)
 
                 bandwidthTracker.set_action("Sending message to user")
+
+                 # ── Check for Instagram "Something isn't working." error ──────
+                try:
+                    error_banner = driver.find_element(
+                        By.XPATH,
+                        "//span[@dir='auto'] //span[contains(text(), 'Something isn't working')]"
+                    )
+                    if error_banner and error_banner.is_displayed():
+                        print(f"⚠️ Instagram page error detected for @{username}, text: {error_banner.text}, skipping.")
+                        webhook.update_campaign_status("instagram_page_error", {
+                            "campaign_id": webhook.attributes.get("campaign_id", None),
+                            "username": username
+                        })
+                        continue
+                except NoSuchElementException:
+                    pass 
 
                 if message_type == "MESSAGE":
                     try:
