@@ -137,7 +137,8 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
         try:
             # Search for the username
-            if search_user(driver, username, human_mouse, human_typing,bandwidthTracker, observer):
+            search_fn = search_user_via_profile if message_type == "MESSAGE" else search_user
+            if search_fn(driver, username, human_mouse, human_typing,bandwidthTracker, observer):
                 print(f"✅ User @{username} found!")
                 time.sleep(2)
 
@@ -448,6 +449,197 @@ def search_user(driver, username: str, human_mouse: HumanMouseBehavior, human_ty
         time.sleep(retry_delay)
     
     print(f"❌ Failed to find user @{username} after {USER_MAX_RETRIES} attempts")
+    return False
+
+
+def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavior, human_typing: HumanTypingBehavior, bandwidthTracker: BandwidthTracker, observer: ScreenObserver, retry_delay: float = 2.0):
+    attempt = 0
+    bandwidthTracker.set_action("Searching for user via profile")
+
+    while attempt < USER_MAX_RETRIES:
+        try:
+            observer.health_monitor.revive_driver("click_body")
+            time.sleep(1)
+
+            # ── STEP 1 & 2: Ensure search panel is open and type username ─────
+            search_panel_input = (By.CSS_SELECTOR, "div[data-visualcompletion='ignore-dynamic'] input[aria-label='Search input'][placeholder='Search']")
+
+            panel_already_open = False
+            try:
+                panel_already_open = bool(driver.find_elements(By.CSS_SELECTOR, "div[data-visualcompletion='ignore-dynamic'] input[aria-label='Search input'][placeholder='Search']"))
+            except Exception:
+                panel_already_open = False
+
+            if not panel_already_open:
+                # Panel not open — click the first Search SVG to open it
+                search_svgs = driver.find_elements(By.CSS_SELECTOR, "svg[aria-label='Search']")
+                if not search_svgs:
+                    raise Exception("No Search SVG found on page")
+
+                human_mouse.human_like_move_to_element_direct(search_svgs[0], click=True)
+                time.sleep(1.5)
+
+                try:
+                    WebDriverWait(driver, 8).until(
+                        EC.element_to_be_clickable(search_panel_input)
+                    )
+                except TimeoutException:
+                    print("⚠️ Search panel did not open, attempting revive...")
+                    observer.health_monitor.revive_driver("click_body")
+                    time.sleep(1.5)
+                    WebDriverWait(driver, 8).until(
+                        EC.element_to_be_clickable(search_panel_input)
+                    )
+
+            # Panel is open — click input and type
+            human_mouse.human_like_move_to_element(search_panel_input, click=True)
+            time.sleep(1)
+            human_typing.human_like_type(search_panel_input, text=username, clear_field=True)
+
+            # Extra wait for special usernames (leading _ or containing .)
+            has_special = username.startswith('_') or '.' in username
+            time.sleep(4.0 if has_special else 2.5)
+
+            # ── STEP 3: Find profile link in results, scroll if needed ────────
+            profile_link_xpath = f"//a[@href='/{username}/' and @role='link'] | //a[@href='/{username}' and @role='link']"
+
+            user_result = None
+            try:
+                WebDriverWait(driver, 8).until(
+                    EC.presence_of_element_located((By.XPATH, profile_link_xpath))
+                )
+                user_result = driver.find_element(By.XPATH, profile_link_xpath)
+            except TimeoutException:
+                print(f"⚠️ Profile link not immediately visible, scrolling results...")
+
+            if user_result is None:
+                observer.health_monitor.revive_driver("screenshot")
+                time.sleep(1.5)
+                matches = driver.find_elements(By.XPATH, profile_link_xpath)
+                user_result = matches[0] if matches else None
+
+            if user_result is None:
+                print(f"⚠️ Attempt {attempt+1}: No profile link found for @{username}")
+                attempt += 1
+                time.sleep(retry_delay)
+                continue
+
+            human_mouse.human_like_move_to_element(user_result, click=True)
+            time.sleep(2)
+
+            # ── STEP 4: Wait for profile page to load ─────────────────────────
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.url_contains(f"/{username}/")
+                )
+                time.sleep(2)
+            except TimeoutException:
+                print(f"⚠️ Profile page did not load for @{username}, reviving...")
+                observer.health_monitor.revive_driver("click_body")
+                time.sleep(3)
+                try:
+                    WebDriverWait(driver, 10).until(
+                        EC.url_contains(f"/{username}/")
+                    )
+                except TimeoutException:
+                    print(f"⚠️ Attempt {attempt+1}: Profile still not loaded for @{username}")
+                    attempt += 1
+                    time.sleep(retry_delay)
+                    continue
+
+            # ── STEP 5: Detect public vs private account ───────────────────────
+            message_btn_xpath = "//div[@role='button' and normalize-space(text())='Message']"
+            options_svg_css_selectors = "svg[aria-label='Options']"
+
+            message_btn = None
+            is_private = False
+
+            try:
+                WebDriverWait(driver, 6).until(
+                    EC.presence_of_element_located((By.XPATH, message_btn_xpath))
+                )
+                message_btn = driver.find_element(By.XPATH, message_btn_xpath)
+            except TimeoutException:
+                print(f"⚠️ No Message button found for @{username}, checking if private...")
+                try:
+                    WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, options_svg_css_selectors))
+                    )
+                    is_private = True
+                except TimeoutException:
+                    print(f"⚠️ Neither Message button nor Options SVG found for @{username}")
+                    attempt += 1
+                    time.sleep(retry_delay)
+                    continue
+
+            # ── STEP 6: Click Message or Options → Message ────────────────────
+            if not is_private:
+                human_mouse.human_like_move_to_element(message_btn, click=True)
+                time.sleep(2)
+            else:
+                options_svg = driver.find_element(By.CSS_SELECTOR, options_svg_css_selectors)
+                human_mouse.human_like_move_to_element(options_svg, click=True)
+                time.sleep(1.5)
+
+                try:
+                    WebDriverWait(driver, 8).until(
+                        EC.presence_of_element_located((By.XPATH, "//div[@role='dialog']"))
+                    )
+                    dialog_msg_btn = driver.find_element(
+                        By.XPATH, "//div[@role='dialog']//button[contains(text(),'Message')]"
+                    )
+                    human_mouse.human_like_move_to_element(dialog_msg_btn, click=True)
+                    time.sleep(2)
+                except TimeoutException:
+                    print(f"⚠️ Dialog did not appear for private account @{username}")
+                    attempt += 1
+                    time.sleep(retry_delay)
+                    continue
+
+            # ── STEP 7: Verify landed on /direct/t/ or fallback to sidebar ────
+            try:
+                WebDriverWait(driver, 6).until(
+                    EC.url_contains("/direct/t/")
+                )
+                print(f"✅ Landed on DM thread for @{username}")
+                time.sleep(2)
+                return True
+
+            except TimeoutException:
+                print(f"⚠️ Did not land on /direct/t/, checking for sidebar...")
+                try:
+                    conversation_div = WebDriverWait(driver, 6).until(
+                        EC.presence_of_element_located((
+                            By.XPATH,
+                            "//div[contains(@aria-label,'Conversation with')]"
+                        ))
+                    )
+                    expand_svg = conversation_div.find_element(
+                        By.XPATH,
+                        "preceding-sibling::div[1]//svg[@aria-label='Expand']"
+                    )
+                    human_mouse.human_like_move_to_element(expand_svg, click=True)
+                    time.sleep(2)
+
+                    WebDriverWait(driver, 6).until(
+                        EC.url_contains("/direct/t/")
+                    )
+                    print(f"✅ Landed on DM thread via Expand for @{username}")
+                    time.sleep(2)
+                    return True
+
+                except Exception as sidebar_e:
+                    print(f"⚠️ Sidebar fallback failed for @{username}: {sidebar_e}")
+                    attempt += 1
+                    time.sleep(retry_delay)
+                    continue
+
+        except Exception as e:
+            print(f"❌ Attempt {attempt+1}: Error in profile search for @{username}: {str(e)}")
+            attempt += 1
+            time.sleep(retry_delay)
+
+    print(f"❌ Failed to reach DM thread for @{username} after {USER_MAX_RETRIES} attempts")
     return False
 
 
