@@ -81,7 +81,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
         seen[msg['username']] = msg
     messages_to_send = list(seen.values())
     instgram_page_error_count = 0
-    instgram_page_error_limit = 5
+    instgram_page_error_limit = 4
 
     # ✅ Track who was messaged THIS session
     already_messaged_this_session = set()
