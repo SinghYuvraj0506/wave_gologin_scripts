@@ -608,16 +608,13 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             except TimeoutException:
                 print(f"⚠️ Did not land on /direct/t/, checking for sidebar...")
                 try:
-                    conversation_div = WebDriverWait(driver, 6).until(
+                    WebDriverWait(driver, 6).until(
                         EC.presence_of_element_located((
                             By.XPATH,
                             "//div[contains(@aria-label,'Conversation with')]"
                         ))
                     )
-                    expand_svg = conversation_div.find_element(
-                        By.XPATH,
-                        "preceding-sibling::div[1]//svg[@aria-label='Expand']"
-                    )
+                    expand_svg = driver.find_element(By.CSS_SELECTOR, "svg[aria-label='Expand']")
                     human_mouse.human_like_move_to_element(expand_svg, click=True)
                     time.sleep(2)
 
