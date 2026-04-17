@@ -143,11 +143,11 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
 
                 bandwidthTracker.set_action("Sending message to user")
 
-                 # ── Check for Instagram "Something isn't working." error ──────
+                # ── Check for Instagram "Something isn't working." error ──────
                 try:
                     error_banner = driver.find_element(
                         By.XPATH,
-                        "//span[@dir='auto'] //span[contains(text(), 'Something isn't working')]"
+                        '//span[@dir="auto"]//span[contains(text(), "Something isn\'t working")]'
                     )
                     if error_banner and error_banner.is_displayed():
                         print(f"⚠️ Instagram page error detected for @{username}, text: {error_banner.text}, skipping.")
@@ -156,7 +156,7 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                         if instgram_page_error_count == instgram_page_error_limit:
                             webhook.update_campaign_status("instagram_page_error", {
                                 "campaign_id": webhook.attributes.get("campaign_id", None),
-                                "page":"Messaging Page"
+                                "page": "Messaging Page"
                             })
                             raise RuntimeError(f"Instagram page error limit reached, max {instgram_page_error_limit} errors encountered")
 
