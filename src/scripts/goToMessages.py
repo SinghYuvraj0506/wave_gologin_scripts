@@ -80,6 +80,8 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
     for msg in messages_to_send:
         seen[msg['username']] = msg
     messages_to_send = list(seen.values())
+    instgram_page_error_count = 0
+    instgram_page_error_limit = 3
 
     # ✅ Track who was messaged THIS session
     already_messaged_this_session = set()
@@ -149,13 +151,18 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                     )
                     if error_banner and error_banner.is_displayed():
                         print(f"⚠️ Instagram page error detected for @{username}, text: {error_banner.text}, skipping.")
-                        webhook.update_campaign_status("instagram_page_error", {
-                            "campaign_id": webhook.attributes.get("campaign_id", None),
-                            "username": username
-                        })
+                        instgram_page_error_count += 1
+                        
+                        if instgram_page_error_count == instgram_page_error_limit:
+                            webhook.update_campaign_status("instagram_page_error", {
+                                "campaign_id": webhook.attributes.get("campaign_id", None),
+                                "page":"Messaging Page"
+                            })
+                            raise RuntimeError(f"Instagram page error limit reached, max {instgram_page_error_limit} errors encountered")
+
                         continue
                 except NoSuchElementException:
-                    pass 
+                    pass
 
                 if message_type == "MESSAGE":
                     try:
