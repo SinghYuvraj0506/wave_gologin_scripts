@@ -476,7 +476,7 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
                 if not search_svgs:
                     raise Exception("No Search SVG found on page")
 
-                human_mouse.human_like_move_to_element_direct(search_svgs[0], click=True)
+                human_mouse.human_like_move_to_element(search_svgs[0], click=True)
                 time.sleep(1.5)
 
                 try:
