@@ -586,7 +586,7 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
                         EC.presence_of_element_located((By.XPATH, "//div[@role='dialog']"))
                     )
                     dialog_msg_btn = driver.find_element(
-                        By.XPATH, "//div[@role='dialog']//button[contains(text(),'Message')]"
+                        By.XPATH, "//div[@role='dialog']//button[contains(text(),'message')]"
                     )
                     human_mouse.human_like_move_to_element(dialog_msg_btn, click=True)
                     time.sleep(2)
