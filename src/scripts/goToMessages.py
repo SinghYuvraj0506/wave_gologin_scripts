@@ -462,11 +462,11 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             time.sleep(1)
 
             # ── STEP 1 & 2: Ensure search panel is open and type username ─────
-            search_panel_input = (By.CSS_SELECTOR, "div[data-visualcompletion='ignore-dynamic'] input[aria-label='Search input'][placeholder='Search']")
+            search_panel_input = (By.CSS_SELECTOR, "input[aria-label='Search input'][placeholder='Search']")
 
             panel_already_open = False
             try:
-                panel_already_open = bool(driver.find_elements(By.CSS_SELECTOR, "div[data-visualcompletion='ignore-dynamic'] input[aria-label='Search input'][placeholder='Search']"))
+                panel_already_open = bool(driver.find_elements(By.CSS_SELECTOR, "input[aria-label='Search input'][placeholder='Search']"))
             except Exception:
                 panel_already_open = False
 
