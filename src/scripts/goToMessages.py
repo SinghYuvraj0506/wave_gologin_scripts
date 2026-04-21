@@ -595,19 +595,24 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             is_private = False
 
             try:
-                WebDriverWait(driver, 6).until(
+                WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.XPATH, message_btn_xpath))
                 )
                 message_btn = driver.find_element(By.XPATH, message_btn_xpath)
             except TimeoutException:
                 print(f"⚠️ No Message button found for @{username}, checking if private...")
                 try:
-                    WebDriverWait(driver, 5).until(
+                    WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, options_svg_css_selectors))
                     )
                     is_private = True
                 except TimeoutException:
                     print(f"⚠️ Neither Message button nor Options SVG found for @{username}")
+
+                    if attempt < USER_MAX_RETRIES:
+                        observer.health_monitor.revive_driver("refresh")
+                        time.sleep(10)
+
                     attempt += 1
                     time.sleep(retry_delay)
                     continue
