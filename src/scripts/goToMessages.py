@@ -583,7 +583,6 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
                         By.XPATH, "//div[@role='dialog']//button[contains(text(),'message request')]"
                     )
                     human_mouse.human_like_move_to_element(dialog_msg_btn, click=True)
-                    time.sleep(2)
                 except TimeoutException:
                     print(f"⚠️ Dialog did not appear for public account @{username}, maybe the sidebar has appeared instead")
 
@@ -625,6 +624,23 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
                             "//div[contains(@aria-label,'Conversation with')]"
                         ))
                     )
+
+                    time.sleep(4)
+
+                    # ✅ NEW: Verify username span exists inside the conversation div
+                    try:
+                        driver.find_element(
+                            By.XPATH,
+                            f"//div[contains(@aria-label,'Conversation with')]//span[contains(text(),'{username}')]"
+                        )
+                        print(f"✅ Username @{username} confirmed in conversation.")
+
+                    except NoSuchElementException:
+                        print(f"⚠️ Username @{username} not found in conversation spans. Please check again.")
+                        attempt += 1
+                        time.sleep(retry_delay)
+                        continue
+
                     expand_svg = driver.find_element(By.CSS_SELECTOR, "svg[aria-label='Expand']")
                     human_mouse.human_like_move_to_element(expand_svg, click=True)
                     time.sleep(2)
