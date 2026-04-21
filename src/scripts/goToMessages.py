@@ -540,7 +540,7 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             time.sleep(4.0 if has_special else 2.5)
 
             # ✅ Verify search results actually loaded, with progressive recovery
-            results_xpath = "//div[contains(@class,'html-div')]//a[@role='link']"
+            results_xpath = "//div[contains(@class,'html-div')]/a[@role='link' and .//a[@role='link']]"
             results_loaded = False
 
             try:
