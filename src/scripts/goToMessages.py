@@ -594,6 +594,9 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             message_btn = None
             is_private = False
 
+            observer.health_monitor.revive_driver("screenshot")
+            time.sleep(3)
+
             try:
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.XPATH, message_btn_xpath))
