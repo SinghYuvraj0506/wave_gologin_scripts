@@ -539,6 +539,48 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             has_special = username.startswith('_') or '.' in username
             time.sleep(4.0 if has_special else 2.5)
 
+            # ✅ Verify search results actually loaded, with progressive recovery
+            results_xpath = "//div[contains(@class,'html-div')]//a[@role='link']"
+            results_loaded = False
+
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, results_xpath))
+                )
+                results_loaded = True
+            except TimeoutException:
+                pass
+
+            if not results_loaded:
+                print(f"⚠️ Search results did not load for @{username} — attempt {attempt+1}, trying recovery...")
+                if attempt == 0:
+                    # 1st failure: close search bar and reopen it
+                    print(f"🔄 Recovery 1: Closing and reopening search panel...")
+                    try:
+                        close_btn = driver.find_element(By.XPATH, "//div[@aria-label='Close' and @role='button']")
+                        if close_btn.is_displayed():
+                            human_mouse.human_like_move_to_element(close_btn, click=True)
+                            time.sleep(1.5)
+                    except NoSuchElementException:
+                        pass
+                
+                elif attempt == 1:
+                    # 2nd failure: refresh the page
+                    print(f"🔄 Recovery 2: Refreshing page...")
+                    observer.health_monitor.revive_driver("refresh")
+                    time.sleep(4)
+
+                else:
+                    # 3rd+ failure: give up on this user
+                    print(f"❌ Search results never loaded for @{username} after {attempt+1} attempts, skipping...")
+                    attempt += 1
+                    time.sleep(retry_delay)
+                    continue
+                
+                attempt += 1
+                time.sleep(retry_delay)
+                continue
+
             # ── STEP 3: Find profile link in results, scroll if needed ────────
             profile_link_xpath = f"//a[@href='/{username}/' and @role='link'] | //a[@href='/{username}' and @role='link']"
 
