@@ -575,7 +575,18 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             # ── STEP 6: Click Message or Options → Message ────────────────────
             if not is_private:
                 human_mouse.human_like_move_to_element(message_btn, click=True)
-                time.sleep(2)
+                try:
+                    WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((By.XPATH, "//div[@role='dialog']"))
+                    )
+                    dialog_msg_btn = driver.find_element(
+                        By.XPATH, "//div[@role='dialog']//button[contains(text(),'message request')]"
+                    )
+                    human_mouse.human_like_move_to_element(dialog_msg_btn, click=True)
+                    time.sleep(2)
+                except TimeoutException:
+                    print(f"⚠️ Dialog did not appear for public account @{username}, maybe the sidebar has appeared instead")
+
             else:
                 options_svg = driver.find_element(By.CSS_SELECTOR, options_svg_css_selectors)
                 human_mouse.human_like_move_to_element(options_svg, click=True)
