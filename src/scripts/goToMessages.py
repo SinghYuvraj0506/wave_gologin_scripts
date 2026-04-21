@@ -138,6 +138,39 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
         try:
             # Search for the username
             search_fn = search_user_via_profile if message_type == "MESSAGE" else search_user
+
+
+            # ✅ If type is FOLLOWUP or REPLY_CHECK, ensure we're on /direct/ before searching
+            if message_type in ("FOLLOWUP", "REPLY_CHECK"):
+                current_url = driver.current_url
+                if "/direct/" not in current_url:
+                    print(f"⚠️ Not on /direct/ page (currently: {current_url}), navigating to inbox first...")
+                    basicUtils.click_anchor_by_href("/direct/inbox/")
+                    try:
+                        WebDriverWait(driver, 10).until(
+                            EC.url_contains("/direct/inbox")
+                        )
+                        time.sleep(3)
+                    except TimeoutException:
+                        print(f"⚠️ Failed to navigate to inbox, attempting recovery...")
+                        observer.health_monitor.revive_driver("screenshot")
+                        time.sleep(3)
+
+                # ✅ Close any leftover open search sidebar before proceeding
+                try:
+                    close_btn = driver.find_element(
+                        By.XPATH,
+                        "//div[@aria-label='Close' and @role='button']"
+                    )
+                    if close_btn.is_displayed():
+                        print(f"⚠️ Search sidebar still open, closing it...")
+                        human_mouse.human_like_move_to_element(close_btn, click=True)
+                        time.sleep(1.5)
+                        print(f"✅ Sidebar closed.")
+                except NoSuchElementException:
+                    pass  # No open sidebar, all good
+
+
             if search_fn(driver, username, human_mouse, human_typing,bandwidthTracker, observer):
                 print(f"✅ User @{username} found!")
                 time.sleep(2)
@@ -576,7 +609,7 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
             if not is_private:
                 human_mouse.human_like_move_to_element(message_btn, click=True)
                 try:
-                    WebDriverWait(driver, 3).until(
+                    WebDriverWait(driver, 8).until(
                         EC.presence_of_element_located((By.XPATH, "//div[@role='dialog']"))
                     )
                     dialog_msg_btn = driver.find_element(
@@ -1042,7 +1075,7 @@ def scroll_to_bottom_message_container(driver) -> None:
         )
         time.sleep(0.4)  # let it settle
     except Exception:
-        logging.warning("Could not scroll DM container to bottom")
+        print("Could not scroll DM container to bottom")
 
 def message_users_from_list(driver, usernames_list, message_text, delay_range=(30, 60)):
     """
