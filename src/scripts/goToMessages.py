@@ -677,14 +677,16 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
 
                     # ✅ NEW: Verify username span exists inside the conversation div
                     try:
-                        driver.find_element(
-                            By.XPATH,
-                            f"//div[contains(@aria-label,'Conversation with')]//span[contains(text(),'{username}')]"
+                        WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((
+                                By.XPATH,
+                                f"//div[contains(@aria-label,'Conversation with')]//span[contains(text(),'{username}')]"
+                            ))
                         )
                         print(f"✅ Username @{username} confirmed in conversation.")
 
-                    except NoSuchElementException:
-                        print(f"⚠️ Username @{username} not found in conversation spans. Please check again.")
+                    except TimeoutException:
+                        print(f"⚠️ Username @{username} not found in conversation spans after 10s. Please check again.")
                         attempt += 1
                         time.sleep(retry_delay)
                         continue
