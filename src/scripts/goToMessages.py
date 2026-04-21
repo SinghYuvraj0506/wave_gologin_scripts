@@ -143,19 +143,6 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
             # ✅ If type is FOLLOWUP or REPLY_CHECK, ensure we're on /direct/ before searching
             if message_type in ("FOLLOWUP", "REPLY_CHECK"):
                 current_url = driver.current_url
-                if "/direct/" not in current_url:
-                    print(f"⚠️ Not on /direct/ page (currently: {current_url}), navigating to inbox first...")
-                    basicUtils.click_anchor_by_href("/direct/inbox/")
-                    try:
-                        WebDriverWait(driver, 10).until(
-                            EC.url_contains("/direct/inbox")
-                        )
-                        time.sleep(3)
-                    except TimeoutException:
-                        print(f"⚠️ Failed to navigate to inbox, attempting recovery...")
-                        observer.health_monitor.revive_driver("screenshot")
-                        time.sleep(3)
-
                 # ✅ Close any leftover open search sidebar before proceeding
                 try:
                     close_btn = driver.find_element(
@@ -170,6 +157,18 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 except NoSuchElementException:
                     pass  # No open sidebar, all good
 
+                if "/direct/" not in current_url:
+                    print(f"⚠️ Not on /direct/ page (currently: {current_url}), navigating to inbox first...")
+                    basicUtils.click_anchor_by_href("/direct/inbox/")
+                    try:
+                        WebDriverWait(driver, 10).until(
+                            EC.url_contains("/direct/inbox")
+                        )
+                        time.sleep(3)
+                    except TimeoutException:
+                        print(f"⚠️ Failed to navigate to inbox, attempting recovery...")
+                        observer.health_monitor.revive_driver("screenshot")
+                        time.sleep(3)
 
             if search_fn(driver, username, human_mouse, human_typing,bandwidthTracker, observer):
                 print(f"✅ User @{username} found!")
@@ -664,50 +663,65 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
                 return True
 
             except TimeoutException:
-                print(f"⚠️ Did not land on /direct/t/, checking for sidebar...")
-                try:
-                    WebDriverWait(driver, 6).until(
-                        EC.presence_of_element_located((
-                            By.XPATH,
-                            "//div[contains(@aria-label,'Conversation with')]"
-                        ))
-                    )
-
-                    time.sleep(4)
-
-                    # ✅ NEW: Verify username span exists inside the conversation div
+                # ✅ Sidebar fallback ONLY for public accounts
+                if not is_private:
+                    print(f"⚠️ Did not land on /direct/t/, checking for sidebar...")
                     try:
-                        WebDriverWait(driver, 10).until(
+                        WebDriverWait(driver, 6).until(
                             EC.presence_of_element_located((
                                 By.XPATH,
-                                f"//div[contains(@aria-label,'Conversation with')]//span[contains(text(),'{username}')]"
+                                "//div[contains(@aria-label,'Conversation with')]"
                             ))
                         )
-                        print(f"✅ Username @{username} confirmed in conversation.")
 
-                    except TimeoutException:
-                        print(f"⚠️ Username @{username} not found in conversation spans after 10s. Please check again.")
+                        try:
+                            WebDriverWait(driver, 10).until(
+                                EC.presence_of_element_located((
+                                    By.XPATH,
+                                    f"//div[contains(@aria-label,'Conversation with')]//span[contains(text(),'{username}')]"
+                                ))
+                            )
+                            print(f"✅ Username @{username} confirmed in conversation.")
+
+                        except TimeoutException:
+                            print(f"⚠️ Wrong conversation loaded (not @{username}), closing sidebar and retrying...")
+                            try:
+                                close_btn = driver.find_element(
+                                    By.XPATH, "//div[@aria-label='Close' and @role='button']"
+                                )
+                                if close_btn.is_displayed():
+                                    human_mouse.human_like_move_to_element(close_btn, click=True)
+                                    time.sleep(1.5)
+                            except NoSuchElementException:
+                                pass
+                            attempt += 1
+                            time.sleep(retry_delay)
+                            continue
+
+                        expand_svg = driver.find_element(By.CSS_SELECTOR, "svg[aria-label='Expand']")
+                        human_mouse.human_like_move_to_element(expand_svg, click=True)
+                        time.sleep(8)
+
+                        WebDriverWait(driver, 6).until(
+                            EC.url_contains("/direct/t/")
+                        )
+                        print(f"✅ Landed on DM thread via Expand for @{username}")
+                        time.sleep(2)
+                        return True
+
+                    except Exception as sidebar_e:
+                        print(f"⚠️ Sidebar fallback failed for @{username}: {sidebar_e}")
                         attempt += 1
                         time.sleep(retry_delay)
                         continue
 
-                    expand_svg = driver.find_element(By.CSS_SELECTOR, "svg[aria-label='Expand']")
-                    human_mouse.human_like_move_to_element(expand_svg, click=True)
-                    time.sleep(2)
-
-                    WebDriverWait(driver, 6).until(
-                        EC.url_contains("/direct/t/")
-                    )
-                    print(f"✅ Landed on DM thread via Expand for @{username}")
-                    time.sleep(2)
-                    return True
-
-                except Exception as sidebar_e:
-                    print(f"⚠️ Sidebar fallback failed for @{username}: {sidebar_e}")
+                else:
+                    # ✅ Private account — no sidebar expected, just retry
+                    print(f"⚠️ Private account @{username} did not land on /direct/t/, retrying...")
                     attempt += 1
                     time.sleep(retry_delay)
                     continue
-
+        
         except Exception as e:
             print(f"❌ Attempt {attempt+1}: Error in profile search for @{username}: {str(e)}")
             attempt += 1
