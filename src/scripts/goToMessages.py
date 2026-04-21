@@ -201,9 +201,16 @@ def search_and_message_users(driver, messages_to_send, observer: ScreenObserver,
                 if message_type == "MESSAGE":
                     try:
                         if (send_to_new_users_only and check_if_existing_messages_are_present(driver, username, observer)):
-                            raise Exception( f"❌ Username @{username} has previous chats with the ig user, hence marking as failed")
+                            webhook.update_campaign_status("sent_dm", {
+                                "campaign_id": webhook.attributes.get("campaign_id", None),
+                                "username": username,
+                                "data": {"already":True},
+                                "type": "MESSAGE",
+                                "failed":True
+                            })
+                            print( f"❌ Username @{username} has previous chats with the ig user, hence marking as failed")
 
-                        if send_message_to_user(driver, username, messages, human_mouse, human_typing, observer, webhook):
+                        elif send_message_to_user(driver, username, messages, human_mouse, human_typing, observer, webhook):
                             successful_messages.append(username)
                             successful_fresh_dms += 1
                             webhook.update_campaign_status("sent_dm", {
