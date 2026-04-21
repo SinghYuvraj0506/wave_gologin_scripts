@@ -647,7 +647,7 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
                         By.XPATH, "//div[@role='dialog']//button[contains(text(),'message')]"
                     )
                     human_mouse.human_like_move_to_element(dialog_msg_btn, click=True)
-                    time.sleep(2)
+                    time.sleep(10)
                 except TimeoutException:
                     print(f"⚠️ Dialog did not appear for private account @{username}")
                     attempt += 1
@@ -656,7 +656,7 @@ def search_user_via_profile(driver, username: str, human_mouse: HumanMouseBehavi
 
             # ── STEP 7: Verify landed on /direct/t/ or fallback to sidebar ────
             try:
-                WebDriverWait(driver, 6).until(
+                WebDriverWait(driver, 8).until(
                     EC.url_contains("/direct/t/")
                 )
                 print(f"✅ Landed on DM thread for @{username}")
