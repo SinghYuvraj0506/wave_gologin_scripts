@@ -364,7 +364,6 @@ class MainExecutor:
                         messages_to_send=messages,
                         observer=self.observer,
                         webhook=self.webhook,
-                        bandwidthTracker=self.bandwithTracker,
                         send_to_new_users_only= send_to_new_users_only
                     )
 
