@@ -99,7 +99,7 @@ class WebhookUtils:
         Update the task status
 
         Args:
-            event: 'task_failed', 'task_completed'
+            event: 'task_failed', 'task_completed', 'instagram_error'
             payload: any extra data that need to transfer
 
         Returns:
@@ -148,8 +148,7 @@ class WebhookUtils:
             "event": event,
             "payload": payload,
         })
-
-    
+ 
     def heartbeat_update(self, payload: dict = {}):
         """
         Update the Account status

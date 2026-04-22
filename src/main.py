@@ -1,11 +1,17 @@
 from utils.scrapping.BandwidthTracker import BandwidthTracker
 from utils.scrapping.BandwidthManager import BandwidthManager
 from utils.scrapping.ScreenObserver import ScreenObserver
+from utils.exceptions import (
+    InstagramServerError,
+    ScriptError,
+    UIChangeError,
+)
 import time
 from scripts.login import insta_login
 from scripts.exploreReel import explore_reels_randomly
 from scripts.browseExplore import browse_explore_page
-from scripts.goToMessages import search_and_message_users
+# from scripts.goToMessages import search_and_message_users
+from scripts.updateGoToMessages import search_and_message_users
 from scripts.goToProfile import goto_profile_and_save_image
 import logging
 from selenium.webdriver.common.by import By
@@ -386,7 +392,7 @@ class MainExecutor:
             time.sleep(5)
             return True
 
-        except RuntimeError as r:
+        except (UIChangeError, ScriptError, RuntimeError, InstagramServerError):
             raise
 
         except Exception as e:
@@ -397,6 +403,7 @@ class MainExecutor:
                 self.need_task_retry = True
 
             return False
+
 
     def execute(self):
         """Main execution method"""
@@ -476,6 +483,20 @@ class MainExecutor:
             time.sleep(10)
             return True
 
+        except (UIChangeError, ScriptError, InstagramServerError) as e:
+            error_msg = str(e)
+            error_data = {
+                "account_id": self.webhook.account_id,
+                "campaign_id": self.webhook.attributes.get("campaign_id",None),
+                "error": error_msg,
+                "error_type": e.__class__.__name__,
+                "context": getattr(e, "context", {})
+            }
+            self.logger.error(f"❌ Found {e.__class__.__name__}: {error_msg}")
+            print(f" 📡 Sending error webhook with data: {json.dumps(error_data, indent=2)}")
+            self.webhook.update_task_status("instagram_error", error_data)
+            return True
+
         except RuntimeError as r:
             print(" ❌ Found Runtime Error >> ", str(r))
             return True
@@ -486,6 +507,7 @@ class MainExecutor:
 
         finally:
             self.cleanup()
+
 
     def cleanup(self):
         """Clean up resources"""
