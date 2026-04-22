@@ -494,7 +494,8 @@ class MainExecutor:
             self.logger.error(f"❌ Found {e.__class__.__name__}: {error_msg}")
             print(f" 📡 Sending error webhook with data: {json.dumps(error_data, indent=2)}")
             self.webhook.update_task_status("instagram_error", error_data)
-            return True
+            self.need_task_retry = True
+            return False
 
         except RuntimeError as r:
             print(" ❌ Found Runtime Error >> ", str(r))
