@@ -49,10 +49,17 @@ from utils.exceptions import (
     UserSearchError,
     MessageRejectedError
 )
+import sys
 
 MESSAGE_MAX_RETRIES: int = 2
 USER_MAX_RETRIES: int = 2
 INSTAGRAM_PAGE_ERROR_LIMIT: int = 4
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    stream=sys.stdout,  # 👈 THIS is key
+)
 
 log = logging.getLogger(__name__)
 
