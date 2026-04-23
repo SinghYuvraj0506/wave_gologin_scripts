@@ -39,6 +39,10 @@ class ScriptError(InstagramScrapingBaseError):
     returned an unexpected value."""
 
 
+class NavigationError(InstagramScrapingBaseError):
+    """Failed to navigate to a required page (e.g. Inbox)."""
+
+
 # ── Search ────────────────────────────────────────────────────────────────────
  
 class UserSearchError(InstagramScrapingBaseError):
@@ -62,6 +66,10 @@ class MessageRejectedError(MessageSendError):
 class GologinError(InstagramScrapingBaseError):
     """Gologin browser profile could not be launched, connected to, or
     kept alive.  Treat as a fatal session error."""
+
+
+class GologinConnectionError(GologinError):
+    """Gologin browser connection failed (e.g. timeout, refuse)."""
 
 
 

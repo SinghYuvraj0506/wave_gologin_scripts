@@ -47,7 +47,8 @@ from utils.exceptions import (
     ScriptError,
     UIChangeError,
     UserSearchError,
-    MessageRejectedError
+    MessageRejectedError,
+    NavigationError
 )
 import sys
 
@@ -176,13 +177,7 @@ def search_and_message_users(
                      "Warmup Failed skipping to inbox navigation", error=str(exc))
                 pass
 
-            try:
-                _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="post-warmup")
-            except Exception:
-                _log(logging.ERROR, None, action,
-                     "Could not return to inbox after warmup — raising")
-                raise
-
+            _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="post-warmup")
             time.sleep(3)
 
         # ── Per-user try block ────────────────────────────────────────────────
@@ -194,12 +189,7 @@ def search_and_message_users(
 
             # FOLLOWUP / REPLY_CHECK: ensure inbox is open and close stray sidebars
             if message_type in ("FOLLOWUP", "REPLY_CHECK"):
-                try:
-                    _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="start-followup-or-reply-check")
-                except Exception as exc:
-                    _log(logging.ERROR, None, action,
-                        "Could not return to inbox after starting followup or reply check", error=str(exc))
-                    raise
+                _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="start-followup-or-reply-check")
                 time.sleep(2)
 
             # ── Run search ────────────────────────────────────────────────────
@@ -295,7 +285,7 @@ def search_and_message_users(
                             f"send_message_to_user returned False for @{username}"
                         )
 
-                except (UIChangeError, ScriptError, RuntimeError, InstagramServerError):
+                except (UIChangeError, ScriptError, RuntimeError, InstagramServerError, NavigationError):
                     raise
 
                 except Exception as exc:
@@ -351,7 +341,7 @@ def search_and_message_users(
                                 f"Followup send_message_to_user returned False for @{username}"
                             )
 
-                except (UIChangeError, ScriptError, RuntimeError, InstagramServerError):
+                except (UIChangeError, ScriptError, RuntimeError, InstagramServerError, NavigationError):
                     raise
 
                 except Exception as exc:
@@ -386,14 +376,14 @@ def search_and_message_users(
                     _log(logging.INFO, username, action,
                          f"Reply check complete — replied={replied}")
 
-                except (UIChangeError, ScriptError, RuntimeError, InstagramServerError):
+                except (UIChangeError, ScriptError, RuntimeError, InstagramServerError, NavigationError):
                     raise
 
                 except Exception as exc:
                     _log(logging.ERROR, username, action, "REPLY_CHECK handler error", error=str(exc))
 
         # ── Per-user exception handling ───────────────────────────────────────
-        except (UIChangeError, ScriptError, RuntimeError, InstagramServerError):
+        except (UIChangeError, ScriptError, RuntimeError, InstagramServerError, NavigationError):
             raise
 
         except UserSearchError as exc:
@@ -1447,10 +1437,19 @@ def _navigate_to_inbox(
             WebDriverWait(driver, 12).until(EC.url_contains("/direct/inbox"))
             return
         except TimeoutException as exc:
-            raise Exception()
+            raise NavigationError(
+                f"Timeout waiting for inbox URL [{context_label}]",
+                context={"context_label": context_label, "url": driver.current_url}
+            ) from exc
+
+    except NavigationError:
+        raise
 
     except Exception as exc:
-        raise Exception(f"Could not reach /direct/inbox/ [{context_label}], error: {str(exc)}")
+        raise NavigationError(
+            f"Could not reach /direct/inbox/ [{context_label}], error: {str(exc)}",
+            context={"context_label": context_label, "original_error": str(exc)}
+        ) from exc
 
 
 def is_page_healthy(driver) -> bool:

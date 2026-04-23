@@ -6,6 +6,9 @@ from utils.exceptions import (
     InstagramServerError,
     ScriptError,
     UIChangeError,
+    GologinConnectionError,
+    GologinError,
+    NavigationError
 )
 import time
 from scripts.login import insta_login
@@ -392,7 +395,7 @@ class MainExecutor:
             time.sleep(5)
             return True
 
-        except (UIChangeError, ScriptError, RuntimeError, InstagramServerError):
+        except (UIChangeError, ScriptError, RuntimeError, InstagramServerError, NavigationError):
             raise
 
         except Exception as e:
@@ -483,7 +486,11 @@ class MainExecutor:
             time.sleep(10)
             return True
 
-        except (UIChangeError, ScriptError, InstagramServerError) as e:
+        except (GologinConnectionError, NavigationError) as e:
+            self.need_task_retry = True
+            return False
+
+        except (UIChangeError, ScriptError, InstagramServerError, GologinError) as e:
             error_msg = str(e)
             error_data = {
                 "account_id": self.webhook.account_id,
@@ -494,7 +501,8 @@ class MainExecutor:
             }
             self.logger.error(f"❌ Found {e.__class__.__name__}: {error_msg}")
 
-            save_page_source(self.driver, self.webhook.task_id)
+            if hasattr(self, 'driver') and self.driver:
+                save_page_source(self.driver, self.webhook.task_id)
 
             print(f" 📡 Sending error webhook with data: {json.dumps(error_data, indent=2)}")
             self.webhook.update_task_status("instagram_error", error_data)

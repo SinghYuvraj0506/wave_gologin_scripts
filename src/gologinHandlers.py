@@ -11,22 +11,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 import time
-
-
-class BaseGologinError(Exception):
-    """Base exception for gologin related error"""
-
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message)
-        self.message = message
-        self.details = details or {}
+from utils.exceptions import GologinConnectionError, GologinError
 
 
 class GologinHandler:
     def __init__(self, proxy_country: str, proxy_city: str, proxy_city_fallbacks: list[str], session_id: str, account_id: str, profile_id: str = None):
         token = Config.GL_API_TOKEN
         if not token:
-            raise BaseGologinError("Gologin Token not found")
+            raise GologinError("Gologin Token not found")
 
         params = {
             'token': token,
@@ -104,7 +96,7 @@ class GologinHandler:
             self.proxyConfig = proxyConfig
             self.change_gologin_proxy(proxyConfig)
         except Exception as e:
-            raise BaseGologinError(
+            raise GologinError(
                 f"Failed to set proxy for {proxy_country}, tried main '{proxy_city}' and fallbacks {proxy_city_fallbacks}, error - {e}"
             )
         
@@ -137,7 +129,7 @@ class GologinHandler:
 
         except Exception as e:
             traceback.print_exc()
-            raise BaseGologinError("Gologin Connection Error", e)
+            raise GologinConnectionError(f"Gologin Connection Error: {str(e)}")
 
 
     def stop_gologin_session(self):
@@ -145,7 +137,7 @@ class GologinHandler:
             self.gologin.stop()
             print('✅ GoLogin session stopped successfully')
         except Exception as e:
-            raise BaseGologinError("GologinStop Connection Error", e)
+            raise GologinError(f"GologinStop Connection Error: {str(e)}")
 
 
     def create_gologin_profile(self):
@@ -185,7 +177,7 @@ class GologinHandler:
 
         except Exception as e:
             print(e)
-            raise BaseGologinError("GologinProfileCreation Error", e)
+            raise GologinError(f"GologinProfileCreation Error: {str(e)}")
 
 
     def change_gologin_proxy(self, proxyConfig):
