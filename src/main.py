@@ -102,7 +102,7 @@ class MainExecutor:
             self.logger.info("✅ Session initialized successfully")
             return True
 
-        except GologinConnectionError:
+        except (GologinConnectionError, GologinError):
             raise
 
         except Exception as e:
