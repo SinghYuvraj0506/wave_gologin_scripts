@@ -71,6 +71,12 @@ def _log(level: int, username: str | None, action: str, msg: str, **extra) -> No
     """
     record_extra = {"ig_username": username or "-"}
     record_extra.update(extra)
+
+    # If there are extra params, append them to the message so they appear in stdout
+    if extra:
+        extra_str = " ".join(f"{k}={v}" for k, v in extra.items())
+        msg = f"{msg} | {extra_str}"
+
     log.log(level, "[%s | %s] %s", username or "-", action, msg, extra=record_extra)
 
 
