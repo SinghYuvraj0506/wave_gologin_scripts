@@ -167,7 +167,7 @@ def search_and_message_users(
                 time.sleep(4)
             except Exception as exc:
                 _log(logging.INFO, None, action,
-                     "Warmup Failed skipping to inbox navigation", {"error": str(exc)})
+                     "Warmup Failed skipping to inbox navigation", error=str(exc))
                 pass
 
             try:
@@ -192,7 +192,7 @@ def search_and_message_users(
                     _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="start-followup-or-reply-check")
                 except Exception as exc:
                     _log(logging.ERROR, None, action,
-                        "Could not return to inbox after starting followup or reply check", {"error": str(exc)})
+                        "Could not return to inbox after starting followup or reply check", error=str(exc))
                     raise
                 time.sleep(2)
 
@@ -300,9 +300,7 @@ def search_and_message_users(
                     raise
 
                 except Exception as exc:
-                    _log(logging.ERROR, username, action, f"MESSAGE handler error", {
-                        "error": str(exc)
-                    })
+                    _log(logging.ERROR, username, action, "MESSAGE handler error", error=str(exc))
                     webhook.update_campaign_status(
                         "sent_dm",
                         {
@@ -358,10 +356,7 @@ def search_and_message_users(
                     raise
 
                 except Exception as exc:
-                    _log(logging.ERROR, username, action, f"FOLLOWUP handler error",
-                    {
-                        "error": str(exc)
-                    })
+                    _log(logging.ERROR, username, action, "FOLLOWUP handler error", error=str(exc))
                     webhook.update_campaign_status(
                         "sent_dm",
                         {
@@ -396,20 +391,14 @@ def search_and_message_users(
                     raise
 
                 except Exception as exc:
-                    _log(logging.ERROR, username, action, "REPLY_CHECK handler error",
-                         {
-                             "error": str(exc)
-                         })
+                    _log(logging.ERROR, username, action, "REPLY_CHECK handler error", error=str(exc))
 
         # ── Per-user exception handling ───────────────────────────────────────
         except (UIChangeError, ScriptError, RuntimeError, InstagramServerError):
             raise
 
         except UserSearchError as exc:
-            _log(logging.ERROR, username, action,
-                 f"user not found",{
-                    "error": str(exc)
-                 })
+            _log(logging.ERROR, username, action, "user not found", error=str(exc))
             webhook.update_campaign_status(
                 "sent_dm",
                 {
@@ -423,11 +412,7 @@ def search_and_message_users(
             continue
 
         except Exception as exc:
-            _log(logging.ERROR, username, action,
-                 "Unhandled per-user exception",
-                 {
-                     "error": str(exc)
-                 })
+            _log(logging.ERROR, username, action, "Unhandled per-user exception", error=str(exc))
 
         # ── Mark as processed, wait before next user ──────────────────────────
         already_messaged_this_session.add(username)
@@ -586,9 +571,7 @@ def search_user(
 
         except Exception as exc:
             _log(logging.ERROR, username, action,
-                 f"Unexpected error on attempt {attempt + 1}", {
-                     "error": str(exc)
-                 })
+                 f"Unexpected error on attempt {attempt + 1}", error=str(exc))
 
         attempt += 1
         time.sleep(retry_delay)
@@ -913,10 +896,7 @@ def search_user_via_profile(
 
                     except Exception as sidebar_exc:
                         _log(logging.WARNING, username, action,
-                             "Sidebar fallback failed",
-                             {
-                                 "error": str(sidebar_exc)
-                             })
+                             "Sidebar fallback failed", error=str(sidebar_exc))
                         attempt += 1
                         time.sleep(retry_delay)
                         continue
@@ -931,11 +911,7 @@ def search_user_via_profile(
             raise 
 
         except Exception as exc:
-            _log(logging.ERROR, username, action,
-                 "Unexpected error on attempt",
-                 {
-                     "error": str(exc)
-                 })
+            _log(logging.ERROR, username, action, "Unexpected error on attempt", error=str(exc))
             attempt += 1
             time.sleep(retry_delay)
 
@@ -1000,10 +976,7 @@ def send_message_to_user(
                             raise Exception("Interaction returned False")
                     except Exception as type_exc:
                         _log(logging.WARNING, username, action,
-                             "Message input stale/failed",
-                             {
-                                 "error": str(type_exc)
-                             })
+                             "Message input stale/failed", error=str(type_exc))
                         observer.health_monitor.revive_driver("screenshot")
                         time.sleep(3)
 
@@ -1055,11 +1028,7 @@ def send_message_to_user(
                     raise
 
                 except Exception as inner_exc:
-                    _log(logging.ERROR, username, action,
-                         f"Inner error sending message",
-                         {
-                            "error":str(inner_exc)
-                         })
+                    _log(logging.ERROR, username, action, "Inner error sending message", error=str(inner_exc))
                     return False
 
         return True
@@ -1068,10 +1037,7 @@ def send_message_to_user(
         raise
 
     except Exception as exc:
-        _log(logging.ERROR, username, action, f"Fatal outer error",
-        {
-            "error": str(exc)
-        })
+        _log(logging.ERROR, username, action, "Fatal outer error", error=str(exc))
         return False
 
 
@@ -1190,10 +1156,7 @@ def verify_message_sent(driver, username: str, message_text: str, observer: Scre
         raise
 
     except Exception as exc:
-        _log(logging.ERROR, username, action, "Unexpected error",
-        {
-            "error": str(exc)
-        })
+        _log(logging.ERROR, username, action, "Unexpected error", error=str(exc))
         return False, "error"
 
 
@@ -1316,9 +1279,7 @@ def check_if_existing_messages_are_present(
         return has_messages
 
     except Exception as exc:
-        _log(logging.ERROR, username, action, "Error",{
-            "error": str(exc)
-        })
+        _log(logging.ERROR, username, action, "Error", error=str(exc))
         return False
 
 
@@ -1379,10 +1340,7 @@ def check_for_reply(
         raise
 
     except Exception as exc:
-        _log(logging.ERROR, username, action, "Error",
-        {
-            "error": str(exc)
-        })
+        _log(logging.ERROR, username, action, "Error", error=str(exc))
         return False
 
 
@@ -1394,10 +1352,7 @@ def random_warmup(driver, observer: ScreenObserver) -> None:
         time.sleep(3)
         browse_explore_page(driver, observer)
     except Exception as exc:
-        _log(logging.ERROR, None, action, "Warmup error (non-fatal)",
-        {
-            "error": str(exc)
-        })
+        _log(logging.ERROR, None, action, "Warmup error (non-fatal)", error=str(exc))
 
 
 def _navigate_to_inbox(
