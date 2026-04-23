@@ -632,6 +632,17 @@ def search_user_via_profile(
                         "No Search SVG found on page — sidebar selector may have changed",
                         context={"username": username, "attempt": attempt + 1},
                     )
+
+                has_modal = bool(driver.find_elements(
+                    By.CSS_SELECTOR, "div[role='dialog'][aria-modal='true']"
+                ))
+
+                if has_modal:
+                    _log(logging.INFO, username, action,
+                         "Modal dialog detected — first click dismisses it, second opens Search")
+                    human_mouse.human_like_move_to_element(search_svgs[0], click=True)
+                    time.sleep(1.0)
+
                 human_mouse.human_like_move_to_element(search_svgs[0], click=True)
                 time.sleep(1.5)
                 try:
