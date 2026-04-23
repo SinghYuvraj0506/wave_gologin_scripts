@@ -829,6 +829,9 @@ def search_user_via_profile(
                         raise UserSearchError(f"No Message button found from options dialog for private chat of @{username}",
                         context={"username": username, "attempts": attempt})
 
+                except (UIChangeError, ScriptError, RuntimeError, UserSearchError):
+                    raise 
+
                 except TimeoutException:
                     _log(logging.WARNING, username, action,
                          "Dialog did not appear for private account")
