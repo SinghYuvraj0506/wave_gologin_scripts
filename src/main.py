@@ -102,9 +102,12 @@ class MainExecutor:
             self.logger.info("✅ Session initialized successfully")
             return True
 
+        except GologinConnectionError:
+            raise
+
         except Exception as e:
-            self.logger.error(f"❌ Failed to initialize session: {e}")
-            return False
+            raise GologinConnectionError(f"Error inititlaizing session: {str(e)}")
+
 
     def check_login_status(self):
         try:
@@ -249,6 +252,7 @@ class MainExecutor:
             except:
                 pass
 
+   
     def perform_login(self, username: str, password: str, secret_key: str):
         """Perform Instagram login and save cookies"""
         try:
