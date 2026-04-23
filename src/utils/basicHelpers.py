@@ -5,6 +5,9 @@ import requests
 import time
 import socket
 import re
+import datetime
+import os
+import subprocess
 
 def wait_for_network_ready(max_wait: int = 30) -> bool:
     """
@@ -351,3 +354,61 @@ def find_ascii_substring(text: str, data: dict) -> str | None:
     match = re.search(r"[\x20-\x7E]{3,10}", resolved)
     return match.group() if match else None
 
+
+
+_GCS_BUCKET    = "wave-tasks-logs"
+_GCS_FOLDER    = "ui_errors_html"
+_LOCAL_TMP_DIR = "/tmp/ig_ui_errors"
+
+
+def save_page_source(driver, task_id: str) -> str | None:
+    """Dump driver.page_source to GCS for post-mortem inspection.
+
+    Flow:
+        1. Write HTML to /tmp/ig_ui_errors/<timestamp>_<task_id>.html
+        2. gsutil cp  →  gs://wave-tasks-logs/ui_errors_html/<same filename>
+        3. Delete local tmp file regardless of upload result
+
+    No credentials needed — GCP VM uses ADC from the instance metadata server.
+    Never raises — a failed dump must never crash the main flow.
+
+    Returns the GCS URI on success, None on any failure.
+    """
+    try:
+        os.makedirs(_LOCAL_TMP_DIR, exist_ok=True)
+
+        ts         = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename   = f"{task_id}_{ts}.html"
+        local_path = os.path.join(_LOCAL_TMP_DIR, filename)
+        gcs_uri    = f"gs://{_GCS_BUCKET}/{_GCS_FOLDER}/{filename}"
+
+        # 1. Write HTML to local tmp
+        source = driver.execute_script("return document.documentElement.outerHTML")
+        with open(local_path, "w", encoding="utf-8", errors="replace") as fh:
+            fh.write(source)
+
+        # 2. Upload to GCS (ADC — no key needed on GCP VM)
+        result = subprocess.run(
+            ["gsutil", "cp", local_path, gcs_uri],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode == 0:
+            print("[%s | save_page_source] Uploaded → %s", task_id, gcs_uri)
+        else:
+            print("[%s | save_page_source] gsutil failed (rc=%s): %s",
+                      task_id, result.returncode, result.stderr.strip())
+
+        # 3. Clean up local tmp file
+        try:
+            os.remove(local_path)
+        except OSError:
+            pass
+
+        return gcs_uri if result.returncode == 0 else None
+
+    except Exception as exc:
+        print("[%s | save_page_source] Failed: %s", task_id, exc)
+        return None

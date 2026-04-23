@@ -1,3 +1,4 @@
+from utils.basicHelpers import save_page_source
 from utils.scrapping.BandwidthTracker import BandwidthTracker
 from utils.scrapping.BandwidthManager import BandwidthManager
 from utils.scrapping.ScreenObserver import ScreenObserver
@@ -492,6 +493,9 @@ class MainExecutor:
                 "context": getattr(e, "context", {})
             }
             self.logger.error(f"❌ Found {e.__class__.__name__}: {error_msg}")
+
+            save_page_source(self.driver, self.webhook.task_id)
+
             print(f" 📡 Sending error webhook with data: {json.dumps(error_data, indent=2)}")
             self.webhook.update_task_status("instagram_error", error_data)
             self.need_task_retry = True
