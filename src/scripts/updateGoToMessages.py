@@ -224,13 +224,6 @@ def search_and_message_users(
                          banner_text=error_banner.text)
 
                     if instagram_page_error_count >= INSTAGRAM_PAGE_ERROR_LIMIT:
-                        webhook.update_campaign_status(
-                            "instagram_page_error",
-                            {
-                                "campaign_id": webhook.attributes.get("campaign_id"),
-                                "page": "Messaging Page",
-                            },
-                        )
                         raise InstagramServerError(
                             f"Instagram page error limit reached ({INSTAGRAM_PAGE_ERROR_LIMIT})",
                             context={
@@ -825,12 +818,17 @@ def search_user_via_profile(
                     WebDriverWait(driver, 8).until(
                         EC.presence_of_element_located((By.XPATH, "//div[@role='dialog']"))
                     )
-                    dialog_msg_btn = driver.find_element(
-                        By.XPATH,
-                        "//div[@role='dialog']//button[contains(text(),'message')]",
-                    )
-                    human_mouse.human_like_move_to_element(dialog_msg_btn, click=True)
-                    time.sleep(10)
+                    try:
+                        dialog_msg_btn = driver.find_element(
+                            By.XPATH,
+                            "//div[@role='dialog']//button[contains(text(),'message')]",
+                        )
+                        human_mouse.human_like_move_to_element(dialog_msg_btn, click=True)
+                        time.sleep(10)
+                    except NoSuchElementException:
+                        raise UserSearchError(f"No Message button found from options dialog for private chat of @{username}",
+                        context={"username": username, "attempts": attempt})
+
                 except TimeoutException:
                     _log(logging.WARNING, username, action,
                          "Dialog did not appear for private account")
@@ -913,7 +911,7 @@ def search_user_via_profile(
                     time.sleep(retry_delay)
                     continue
 
-        except (UIChangeError, ScriptError, RuntimeError):
+        except (UIChangeError, ScriptError, RuntimeError, UserSearchError):
             raise 
 
         except Exception as exc:
