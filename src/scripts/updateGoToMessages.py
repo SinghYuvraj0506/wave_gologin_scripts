@@ -183,19 +183,17 @@ def search_and_message_users(
         # ── Per-user try block ────────────────────────────────────────────────
         try:
             # ── Choose search strategy ────────────────────────────────────────
-            search_fn = (
-                search_user_via_profile if message_type == "MESSAGE" else search_user
-            )
+            # search_fn = (
+            #     search_user_via_profile if message_type == "MESSAGE" else search_user
+            # )
 
-            # FOLLOWUP / REPLY_CHECK: ensure inbox is open and close stray sidebars
-            if message_type in ("FOLLOWUP", "REPLY_CHECK"):
-                _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="start-followup-or-reply-check")
-                time.sleep(2)
+            # # FOLLOWUP / REPLY_CHECK: ensure inbox is open and close stray sidebars
+            # if message_type in ("FOLLOWUP", "REPLY_CHECK"):
+            #     _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="start-followup-or-reply-check")
+            #     time.sleep(2)
 
             # ── Run search ────────────────────────────────────────────────────
-            search_fn(
-                driver, username, human_mouse, human_typing, observer
-            )
+            search_user(driver, username, human_mouse, human_typing, observer)
 
             # search_fn raises SearchError on failure; reaching here means found
             _log(logging.INFO, username, action, "User found ✓")
