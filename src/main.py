@@ -561,6 +561,6 @@ class MainExecutor:
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}")
         
-        finally: 
-            self.bandwithTracker.stop()
-            self.bandwithTracker.print_report()
+        # finally: 
+            # self.bandwithTracker.stop()
+            # self.bandwithTracker.print_report()

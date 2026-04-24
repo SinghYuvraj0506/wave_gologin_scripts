@@ -134,10 +134,11 @@ class GologinHandler:
 
     def stop_gologin_session(self):
         try:
-            self.gologin.stop()
-            print('✅ GoLogin session stopped successfully')
+            if hasattr(self.gologin, "stop"):
+                self.gologin.stop()
+                print('✅ GoLogin session stopped successfully')
         except Exception as e:
-            raise GologinError(f"GologinStop Connection Error: {str(e)}")
+            raise GologinError(f"GologinStop Error: {str(e)}")
 
 
     def create_gologin_profile(self):
