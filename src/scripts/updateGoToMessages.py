@@ -193,7 +193,7 @@ def search_and_message_users(
             #     time.sleep(2)
 
             # ── Run search ────────────────────────────────────────────────────
-            search_user(driver, username, human_mouse, human_typing, observer)
+            search_user(driver, username, human_mouse, human_typing, basicUtils, observer)
 
             # search_fn raises SearchError on failure; reaching here means found
             _log(logging.INFO, username, action, "User found ✓")
@@ -426,6 +426,7 @@ def search_user(
     username: str,
     human_mouse: HumanMouseBehavior,
     human_typing: HumanTypingBehavior,
+    basicUtils: BasicUtils,
     observer: ScreenObserver,
     retry_delay: float = 2.0,
 ) -> bool:
@@ -449,6 +450,8 @@ def search_user(
         try:
             observer.health_monitor.revive_driver("click_body")
             observer.human_mouse.random_mouse_jitter(3,"medium")
+
+            _navigate_to_inbox(driver, basicUtils, observer, human_mouse, context_label="search-user")
 
             # ── Back button (dismiss previous result if any) ──────────────────
             back_button = (By.CSS_SELECTOR, "svg[aria-label='Back']")
@@ -967,6 +970,21 @@ def send_message_to_user(
                             )
                         )
                     except TimeoutException as exc:
+                        try:
+                            driver.find_element(
+                                By.XPATH,
+                                "//div[@role='button' and contains(text(),'Block')]"
+                            )
+                            driver.find_element(
+                                By.XPATH,
+                                "//div[@role='button' and contains(text(),'Accept')]"
+                            )
+                            print(f"⚠️ @{username} has a pending message request screen (Accept/Block), skipping...")
+                            return False
+                            
+                        except NoSuchElementException:
+                            pass
+                        
                         raise UIChangeError(
                             "DM textbox not found within timeout — selector may have changed",
                             context={"username": username},
