@@ -112,6 +112,13 @@ async function findUnusedProfiles(csvPath, idColumn = "id") {
       unused.push(p);
     }
   }
+  // for (const p of dbAccountIds) {
+  //   if (!p) {
+  //     noUuid.push(p);
+  //   } else if (!allProfiles.some((ap) => ap.accountId === p)) {
+  //     unused.push(p);
+  //   }
+  // }
 
   console.log("\n" + "─".repeat(55));
   console.log(`  Total profiles fetched : ${allProfiles.length}`);
@@ -133,6 +140,7 @@ async function findUnusedProfiles(csvPath, idColumn = "id") {
   const rows = [
     "id,name,accountId",
     ...unused.map((p) => `${p.id},${p.name},${p.accountId}`),
+    // ...unused.map((p) => `${p}`),
   ];
   fs.writeFileSync(outPath, rows.join("\n"), "utf-8");
   console.log(`\nResults saved to "${outPath}"`);

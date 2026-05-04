@@ -10,6 +10,9 @@ import time
 from utils.scrapping.ScreenObserver import ScreenObserver
 from utils.WebhookUtils import WebhookUtils
 from utils.connectivityChecks import check_connectivity
+from utils.exceptions import (
+    UIChangeError
+)
 
 def insta_login(driver, username: str, password: str, secret_key: str, observer: ScreenObserver, webhook: WebhookUtils, proxy_config: dict):
     """
@@ -52,7 +55,7 @@ def insta_login(driver, username: str, password: str, secret_key: str, observer:
             is_last_attempt=is_last_attempt
         )
 
-    except RuntimeError:
+    except (UIChangeError, RuntimeError):
         raise
 
     except Exception as e:
@@ -99,26 +102,47 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
 
             if login_form_new:
                 print("🔄 New login page detected!")
-                username_selector = (By.NAME, "email")
-                password_selector = (By.NAME, "pass")
                 login_button_xpath = "//div[@role='button' and contains(., 'Log in')]"
             else:
                 print("🟦 Classic Instagram login page detected")
-                username_selector = (By.NAME, "username")
-                password_selector = (By.NAME, "password")
                 login_button_xpath = "//button[contains(., 'Log in')]"
 
         except Exception as e:
             print(f"❌ Failed detecting login form: {e}")
-            return False
+            raise UIChangeError(
+                "Login form not detected",
+                context={"account_username": username},
+            ) from e
+
+        # ✅ Try both selector variants for username and password fields
+        username_input = None
+        password_input = None
+
+        username_selectors = [(By.NAME, "username"), (By.NAME, "email")]
+        password_selectors = [(By.NAME, "password"), (By.NAME, "pass")]
 
         # ── Type credentials ───────────────────────────────────────────────────
-        try:
-            username_input = wait.until(EC.presence_of_element_located(username_selector))
-            password_input = wait.until(EC.presence_of_element_located(password_selector))
-        except TimeoutException:
-            print("❌ Login form fields not found")
-            return False
+        for selector in username_selectors:
+            try:
+                username_input = wait.until(EC.presence_of_element_located(selector))
+                print(f"✅ Username field found via: {selector}")
+                break
+            except TimeoutException:
+                continue
+
+        for selector in password_selectors:
+            try:
+                password_input = wait.until(EC.presence_of_element_located(selector))
+                print(f"✅ Password field found via: {selector}")
+                break
+            except TimeoutException:
+                continue
+
+        if not username_input or not password_input:
+            raise UIChangeError(
+                "❌ Login form fields not found (tried username/email and password/pass)",
+                context={"account_username": username},
+            )
 
         human_mouse.human_like_move_to_element(username_input, click=True)
         human_typing.human_like_type(username_input, text=username, typing_speed="normal")
@@ -155,6 +179,7 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
             print(f"✅ URL changed to: {driver.current_url}")
         except TimeoutException:
             print("⚠️ URL did not change after 20s — checking page state...")
+
         time.sleep(2)
 
         # ── Email verification checkpoint ──────────────────────────────────────
@@ -197,8 +222,8 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
         time.sleep(40)
         return True
 
-    except RuntimeError:
-        raise
+    except (UIChangeError, RuntimeError):
+            raise
 
     except Exception as e:
         print(f"❌ Unexpected error during login attempt: {e}")
