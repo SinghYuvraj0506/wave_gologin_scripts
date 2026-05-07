@@ -11,11 +11,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 import time
-from utils.exceptions import GologinConnectionError, GologinError
+from utils.exceptions import GologinConnectionError, GologinError, GologinProfileNotFoundError
 
 
 class GologinHandler:
-    def __init__(self, proxy_country: str, proxy_city: str, proxy_city_fallbacks: list[str], session_id: str, account_id: str, profile_id: str = None):
+    def __init__(self, proxy_country: str, proxy_city: str, proxy_city_fallbacks: list[str], session_id: str, account_id: str, profile_id: str = None, task_type: str = None):
         token = Config.GL_API_TOKEN
         if not token:
             raise GologinError("Gologin Token not found")
@@ -87,6 +87,9 @@ class GologinHandler:
         try:
             self.gologin.setProfileId(self.profile_id)
         except Exception as e:
+            if self.task_type != "LOGIN" :
+                raise GologinProfileNotFoundError(f"Gologin profile not found for {self.account_id}")
+
             self.create_gologin_profile()
             self.gologin.setProfileId(self.profile_id)
 

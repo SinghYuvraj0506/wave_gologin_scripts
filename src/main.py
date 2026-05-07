@@ -8,7 +8,8 @@ from utils.exceptions import (
     UIChangeError,
     GologinConnectionError,
     GologinError,
-    NavigationError
+    NavigationError,
+    GologinProfileNotFoundError
 )
 import time
 from scripts.login import insta_login
@@ -78,7 +79,8 @@ class MainExecutor:
                 proxy_city=self.proxy_city,
                 proxy_city_fallbacks=self.proxy_city_fallbacks,
                 session_id=self.session_id,
-                account_id=self.webhook.account_id
+                account_id=self.webhook.account_id,
+                task_type=self.task_type
             )
 
             self.profile_id = self.gologin.profile_id
@@ -102,7 +104,7 @@ class MainExecutor:
             self.logger.info("✅ Session initialized successfully")
             return True
 
-        except (GologinConnectionError, GologinError):
+        except (GologinConnectionError, GologinError, GologinProfileNotFoundError):
             raise
 
         except Exception as e:
@@ -488,6 +490,13 @@ class MainExecutor:
                 return False
 
             time.sleep(10)
+            return True
+
+        except GologinProfileNotFoundError:
+            self.webhook.update_account_status("login_required", {
+                "account_id": self.webhook.account_id,
+                "cookies": self.cookies
+            })
             return True
 
         except (GologinConnectionError, NavigationError) as e:

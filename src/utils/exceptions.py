@@ -72,6 +72,10 @@ class GologinConnectionError(GologinError):
     """Gologin browser connection failed (e.g. timeout, refuse)."""
 
 
+class GologinProfileNotFoundError(GologinError):
+    """Gologin profile not found."""
+
+
 
 # ── Instagram Server ──────────────────────────────────────────────────────────
 
