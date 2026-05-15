@@ -86,7 +86,7 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
         # ── Check for "Use another profile" button ────────────────────────────────
         try:
             use_another_profile_xpath = "//div[@role='none'][.//span[contains(., 'Use') and contains(., 'another') and contains(., 'profile')]]"
-            use_another_btn = WebDriverWait(driver, 5).until(
+            use_another_btn = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, use_another_profile_xpath))
             )
             print("👤 'Use another profile' button detected — clicking it...")

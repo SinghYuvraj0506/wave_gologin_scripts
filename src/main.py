@@ -167,43 +167,17 @@ class MainExecutor:
                         pass
 
                     # Step 3: Check for Instagram content with flexible selectors
-                    content_found = False
-                    selectors_to_try = [
-                        # Logged in indicators
-                        ("svg[aria-label='Home']", "home_icon"),
-                        ("svg[aria-label*='Home']", "home_variant"),
+                    # First check if "Use another profile" button exists (not logged in indicator)
+                    if self._is_not_logged_in():
+                        self.logged_in = False
+                        self.logger.info("ℹ️ Not logged in (use another profile button found)")
+                        return False
 
-                        # Login form indicators
-                        ("input[name='username']", "username_input"),
-                        ("input[placeholder*='username']",
-                         "username_placeholder"),
-                        ("form[method='post']", "login_form"),
-                        ("[data-testid='royal_login_form']", "royal_form")
-                    ]
-
-                    for selector, name in selectors_to_try:
-                        try:
-                            elements = self.driver.find_elements(
-                                By.CSS_SELECTOR, selector)
-                            if elements:
-                                print(f"✅ Found {name} - Instagram loaded")
-                                content_found = True
-
-                                # Determine login status
-                                if name.startswith("home"):
-                                    self.logged_in = True
-                                    self.logger.info("✅ Already logged in")
-                                    return True
-                                elif name.startswith("username") or name.endswith("form"):
-                                    self.logged_in = False
-                                    self.logger.info("ℹ️ Not logged in")
-                                    return False
-                                break
-                        except:
-                            continue
-
-                    if content_found:
-                        break
+                    # Check logged-in indicators
+                    if self._is_logged_in():
+                        self.logged_in = True
+                        self.logger.info("✅ Already logged in")
+                        return True
 
                     # If no content found, try revival
                     if attempt < max_attempts - 1:
@@ -254,7 +228,55 @@ class MainExecutor:
             except:
                 pass
 
-   
+    def _is_logged_in(self) -> bool:
+        """Check for logged-in indicators using CSS selectors."""
+        logged_in_selectors = [
+            ("svg[aria-label='Home']", "home_icon"),
+            ("svg[aria-label*='Home']", "home_variant"),
+        ]
+
+        for selector, name in logged_in_selectors:
+            try:
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                if elements:
+                    print(f"✅ Found {name} - Logged in")
+                    return True
+            except Exception:
+                continue
+
+        return False
+
+    def _is_not_logged_in(self) -> bool:
+        """Check for not-logged-in indicators using XPath and CSS selectors."""
+        # XPath: "Use another profile" button - appears when logged into another profile
+        try:
+            use_another_xpath = "//div[@role='none'][.//span[contains(., 'Use') and contains(., 'another') and contains(., 'profile')]]"
+            elements = self.driver.find_elements(By.XPATH, use_another_xpath)
+            if elements:
+                print("✅ Found 'Use another profile' button - Not logged in")
+                return True
+        except Exception:
+            pass
+
+        # CSS: Login form indicators
+        not_logged_in_selectors = [
+            ("input[name='username']", "username_input"),
+            ("input[placeholder*='username']", "username_placeholder"),
+            ("form[method='post']", "login_form"),
+            ("[data-testid='royal_login_form']", "royal_form"),
+        ]
+
+        for selector, name in not_logged_in_selectors:
+            try:
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                if elements:
+                    print(f"✅ Found {name} - Not logged in")
+                    return True
+            except Exception:
+                continue
+
+        return False
+
     def perform_login(self, username: str, password: str, secret_key: str):
         """Perform Instagram login and save cookies"""
         try:
