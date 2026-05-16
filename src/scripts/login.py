@@ -83,6 +83,26 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
         # Wait for cookies dialog / page to settle
         time.sleep(10)
 
+        # ── Check for "Open Instagram" div button ─────────────────────────────────
+        try:
+            open_instagram_xpath = "//div[@role='button'][contains(., 'Open Instagram')]"
+            WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, open_instagram_xpath))
+            )
+            print("📱 'Open Instagram' button detected..")
+
+            login_btn_xpath = "//button[@type='button'][.//span[contains(text(), 'Log in') or contains(text(), 'Log')]]"
+            login_btn = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, login_btn_xpath))
+            )
+            print("🔘 Log in button detected — clicking it...")
+            human_mouse.human_like_move_to_element(login_btn, click=True)
+            time.sleep(3)
+            print("✅ Skipped 'Open Instagram'")
+        except TimeoutException:
+            print("ℹ️ No 'Open Instagram' button — proceeding with login flow")
+
+
         # ── Check for "Use another profile" button ────────────────────────────────
         try:
             use_another_profile_xpath = "//div[@role='none'][.//span[contains(., 'Use') and contains(., 'another') and contains(., 'profile')]]"
@@ -95,6 +115,7 @@ def _attempt_login(driver, username:str, password:str, secret_key:str, observer:
             print("✅ Clicked 'Use another profile'")
         except TimeoutException:
             print("ℹ️ No 'Use another profile' button — proceeding normally")
+
 
         # ── Detect login form type ─────────────────────────────────────────────
         try:

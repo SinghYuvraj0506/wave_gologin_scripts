@@ -167,7 +167,6 @@ class MainExecutor:
                         pass
 
                     # Step 3: Check for Instagram content with flexible selectors
-                    # First check if "Use another profile" button exists (not logged in indicator)
                     if self._is_not_logged_in():
                         self.logged_in = False
                         self.logger.info("ℹ️ Not logged in (use another profile button found)")
@@ -202,31 +201,20 @@ class MainExecutor:
                     else:
                         raise
 
-            # Ultimate fallback
-            # wait for 30 sec to see if it is possible to be handled by observer
-            time(30)
-            print("⚠️ Could not determine login status - assuming not logged in")
-            self.logged_in = False
-            return False
+            # Ultimate fallback - all attempts exhausted
+            print("⚠️ Could not determine login status - raising UIChangeError")
+            raise UIChangeError("Could not determine login status after all attempts - no Instagram content found")
 
         except Exception as e:
             self.logger.error(f"Error checking login status: {e}")
-            # Try one final health check
-            try:
-                self.driver.execute_script("return 'alive';")
-                print("🔄 Driver still alive despite error")
-            except:
-                print("❌ Driver appears dead")
-
-            self.logged_in = False
-            return False
+            raise UIChangeError(f"Error in determining login status: {str(e)}")
 
         finally:
-            # Restore original timeout
             try:
                 self.driver.set_page_load_timeout(original_timeout)
             except:
                 pass
+
 
     def _is_logged_in(self) -> bool:
         """Check for logged-in indicators using CSS selectors."""
@@ -258,12 +246,25 @@ class MainExecutor:
         except Exception:
             pass
 
+        # XPath: Open Instagram page ,Login page indicators - button with "Log in" text + anchor with "Sign up" text
+        try:
+            login_button_xpath = "//button[@type='button'][.//span[contains(text(), 'Log in') or contains(text(), 'Log')]]"
+            sign_up_link_xpath = "//a[@role='link'][.//span[contains(text(), 'Sign up') or contains(text(), 'Sign')]]"
+            login_button = self.driver.find_elements(By.XPATH, login_button_xpath)
+            sign_up_link = self.driver.find_elements(By.XPATH, sign_up_link_xpath)
+            if login_button and sign_up_link:
+                print("✅ Found login page (Log in button + Sign up link) - Not logged in")
+                return True
+        except Exception:
+            pass
+
         # CSS: Login form indicators
         not_logged_in_selectors = [
             ("input[name='username']", "username_input"),
+            ("input[name='email']", "username_input2"),
             ("input[placeholder*='username']", "username_placeholder"),
             ("form[method='post']", "login_form"),
-            ("[data-testid='royal_login_form']", "royal_form"),
+            ("form#login_form", "royal_form"),
         ]
 
         for selector, name in not_logged_in_selectors:
