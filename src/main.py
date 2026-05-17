@@ -311,7 +311,7 @@ class MainExecutor:
                 self.logger.error("❌ Login function returned failure")
                 return False
 
-        except (UIChangeError, RuntimeError):
+        except (UIChangeError, ScriptError, RuntimeError):
             raise
 
         except Exception as e:
