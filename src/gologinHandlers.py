@@ -119,6 +119,15 @@ class GologinHandler:
             service = Service("/usr/local/bin/chromedriver")
 
             chrome_options = webdriver.ChromeOptions()
+
+            prefs = {
+                "profile.credentials_enable_service": False,
+                "profile.password_manager_enabled": False,
+                "profile.password_manager_leak_detection": False
+            }
+
+
+            chrome_options.add_experimental_option("prefs", prefs)
             chrome_options.add_experimental_option(
                 "debuggerAddress", debugger_address)
 
