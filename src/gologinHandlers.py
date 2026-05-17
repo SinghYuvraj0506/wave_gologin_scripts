@@ -120,20 +120,31 @@ class GologinHandler:
 
             chrome_options = webdriver.ChromeOptions()
 
-            prefs = {
-                "profile.credentials_enable_service": False,
-                "profile.password_manager_enabled": False,
-                "profile.password_manager_leak_detection": False
-            }
-
-
-            chrome_options.add_experimental_option("prefs", prefs)
             chrome_options.add_experimental_option(
                 "debuggerAddress", debugger_address)
 
             print('🌐 Connecting to browser...')
             self.driver = webdriver.Chrome(
                 service=service, options=chrome_options)
+
+            # ── Suppress password save popup via CDP ──────────────────────────────────
+            try:
+                self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                    "source": """
+                        Object.defineProperty(window, 'PasswordsPrivateApi', {
+                            get: () => undefined
+                        });
+                        
+                        // Override credential saving
+                        if (navigator.credentials) {
+                            navigator.credentials.store = () => Promise.resolve();
+                            navigator.credentials.preventSilentAccess = () => Promise.resolve();
+                        }
+                    """
+                })
+                print("✅ Password save popup suppressed")
+            except Exception as e:
+                print(f"⚠️ Could not suppress password popup: {e}")
             
             bandwidthManager.enable(self.driver)
             time.sleep(3)
