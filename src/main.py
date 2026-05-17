@@ -156,7 +156,32 @@ class MainExecutor:
                         EC.presence_of_element_located((By.TAG_NAME, "body"))
                     )
 
-                    # Step 2: Wake up the page with interactions
+                    # Step 2: Check for splash screen freeze
+                    splash_screen_found = False
+                    for splash_attempt in range(3):
+                        splash_xpath = "//div[@id='splash-screen'][.//img][.//span[.//img]]"
+                        try:
+                            splash_elements = self.driver.find_elements(By.XPATH, splash_xpath)
+                            if splash_elements:
+                                splash_screen_found = True
+                                if splash_attempt < 2:  # Don't wait on last attempt
+                                    print(f"⚠️ Splash screen detected, waiting 10s (attempt {splash_attempt + 1}/3)")
+                                    time.sleep(8)
+                                else:
+                                    print("⚠️ Splash screen still present after 3 waits, refreshing page")
+                                    self.observer.health_monitor.revive_driver("refresh")
+                                    time.sleep(5)
+                                    break
+                            else:
+                                splash_screen_found = False
+                                break
+                        except Exception:
+                            break
+
+                    if splash_screen_found and attempt < max_attempts - 1:
+                        continue  # Will refresh and retry
+
+                    # Step 3: Wake up the page with interactions
                     try:
                         self.driver.execute_script("document.body.click();")
                         time.sleep(1)
@@ -166,7 +191,7 @@ class MainExecutor:
                     except:
                         pass
 
-                    # Step 3: Check for Instagram content with flexible selectors
+                    # Step 4: Check for Instagram content with flexible selectors
                     if self._is_not_logged_in():
                         self.logged_in = False
                         self.logger.info("ℹ️ Not logged in (use another profile button found)")
